@@ -1,19 +1,12 @@
 html,body {
-  margin:0;
-  height:100%;
-  background:#0b1020;
-  color:#e9eef9;
-  font-family:sans-serif;
+  margin:0; height:100%;
+  background:#0b1020; color:#e9eef9; font-family:sans-serif;
 }
-#viz {
-  position:fixed; inset:0;
-  width:100vw; height:100vh;
-  display:block;
-}
+#viz { position:fixed; inset:0; width:100vw; height:100vh; display:block; }
 .ui {
   position:fixed; left:1rem; top:1rem;
-  background:rgba(0,0,0,.35);
-  padding:.6rem .8rem;
-  border-radius:12px;
+  background:rgba(0,0,0,.35); padding:.6rem .8rem; border-radius:12px;
+  backdrop-filter: blur(6px);
 }
 button { margin-right:.5rem; }
+
