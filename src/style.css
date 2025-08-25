@@ -3,9 +3,9 @@
   --fg: #e9eef9;
   --muted: #cfd8f6;
 
-  --p1: #7bdff2;
-  --p2: #b2f7ef;
-  --p3: #eff7f6;
+  --p1: #7bdff2;  /* hoofdkleur */
+  --p2: #b2f7ef;  /* accent */
+  --p3: #eff7f6;  /* glow */
 }
 
 * { box-sizing: border-box; }
@@ -19,6 +19,9 @@ body {
 
 /* Canvas fullscreen */
 #viz { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; }
+
+/* Verborgen webcamvideo (alleen voor analyse) */
+#cam { display:none; }
 
 /* Persistente mini brand in de hoek */
 .brand{
@@ -39,7 +42,7 @@ body {
 }
 .word{ letter-spacing: .06em; }
 
-/* Centrale overlay voor mic-toestemming */
+/* Centrale overlay voor camera-toestemming */
 .overlay{
   position: fixed; left:50%; top:50%; transform: translate(-50%,-50%);
   text-align:center;
@@ -70,9 +73,9 @@ body {
 .btn:hover{ transform: translateY(-1px); background: var(--p2); }
 .btn:active{ transform: translateY(0); }
 
-/* Info knop — groter en duidelijk */
+/* Icon knoppen */
 .icon-btn{
-  position: fixed; right: 1rem; top: 1rem;
+  position: fixed;
   width: 56px; height: 56px; border-radius: 999px;
   border: 1px solid rgba(255,255,255,.14);
   background: rgba(0,0,0,.38); color: var(--fg);
@@ -81,6 +84,7 @@ body {
   box-shadow: 0 10px 28px rgba(0,0,0,.35);
   display: grid; place-items: center;
   z-index: 2;
+  right: 1rem; top: 1rem;
 }
 .icon-btn .icon{
   display:inline-block;
@@ -121,13 +125,9 @@ body {
   font-size: 20px; cursor: pointer;
 }
 
-/* Subtiele vignette voor diepte */
+/* Subtiele vignette */
 body::after{
   content:""; position: fixed; inset: 0; pointer-events:none;
   background: radial-gradient(1200px 800px at 50% -10%, transparent 40%, rgba(0,0,0,.25) 85%, rgba(0,0,0,.55) 100%);
   z-index: 1;
 }
-
-
-
-
