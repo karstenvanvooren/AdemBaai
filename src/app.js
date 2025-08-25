@@ -7,10 +7,13 @@ const camVideo  = document.getElementById("cam");
 
 const centerOverlay = document.getElementById("centerOverlay");
 const enableCamBtn  = document.getElementById("enableCamBtn");
+const enableMicBtn  = document.getElementById("enableMicBtn");
 
 const infoBtn   = document.getElementById("infoBtn");
 const infoModal = document.getElementById("infoModal");
 const closeInfo = document.getElementById("closeInfo");
+
+const micBtn    = document.getElementById("micBtn");
 
 // ====== Canvas DPI ======
 function resize(){
@@ -29,16 +32,33 @@ resize(); addEventListener("resize", resize);
 let camStream = null, camOn = false;
 let motionCanvas = null, motionCtx = null, prevFrame = null;
 
-// Motion parameters
-const MOTION_SCALE = 4;   // downsample factor (snel)
-const BLOCK = 8;          // blokgrootte voor analyse
-const MOTION_THRESH = 28; // drempel voor “er beweegt iets”
-let motionIntensity = 0;  // 0..1 (exponentieel gedempt)
-let motionCenterX = 0.5;  // 0..1 (links→rechts zwaartepunt)
+const MOTION_SCALE = 4;
+const BLOCK = 8;
+const MOTION_THRESH = 28;
 
-// Easing helpers
-const lerp = (a,b,t)=> a + (b-a)*t;
-function smoothTo(v, target, amt){ return lerp(v, target, amt); }
+let motionIntensity = 0;  // 0..1
+let motionCenterX  = 0.5; // 0..1 (links→rechts)
+
+// ====== Microfoon → audio (RMS + spectrale centroid) ======
+let micCtx = null, analyserTime = null, analyserFreq = null, timeBuf = null, freqBuf = null, micOn = false;
+let audioLevel = 0;  // 0..1
+let audioHue   = 200; // 200..330 (blauw → magenta)
+
+function rms(buf){
+  let s=0; for (let i=0;i<buf.length;i++){ const v=buf[i]; s+=v*v; }
+  return Math.sqrt(s / buf.length);
+}
+function spectralCentroid(byteFreq, sampleRate, fftSize){
+  let num=0, den=0;
+  const binHz = sampleRate / fftSize;
+  for (let i=0;i<byteFreq.length;i++){
+    const mag = byteFreq[i];
+    den += mag;
+    num += mag * (i * binHz);
+  }
+  if (den < 1e-6) return 0;
+  return num / den;
+}
 
 async function enableCamera(){
   try {
@@ -56,17 +76,49 @@ async function enableCamera(){
     motionCanvas.width = w; motionCanvas.height = h;
     motionCtx = motionCanvas.getContext("2d", { willReadFrequently:true });
     prevFrame = motionCtx.createImageData(w, h);
-
-    centerOverlay.style.display = "none";
   } catch {
-    alert("Camera-toegang geweigerd of niet beschikbaar. De baai blijft kabbelen.");
+    alert("Camera-toegang geweigerd of niet beschikbaar.");
   }
 }
 
+async function enableMic(){
+  try{
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation:false, noiseSuppression:false, autoGainControl:false },
+      video: false
+    });
+    // user gesture via click (micBtn or overlay) required for AudioContext
+    micCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const src = micCtx.createMediaStreamSource(stream);
+
+    analyserTime = micCtx.createAnalyser();
+    analyserTime.fftSize = 1024;
+    analyserTime.smoothingTimeConstant = 0.9;
+
+    analyserFreq = micCtx.createAnalyser();
+    analyserFreq.fftSize = 2048;
+    analyserFreq.smoothingTimeConstant = 0.85;
+
+    src.connect(analyserTime);
+    src.connect(analyserFreq);
+
+    timeBuf = new Float32Array(analyserTime.fftSize);
+    freqBuf = new Uint8Array(analyserFreq.frequencyBinCount);
+
+    micOn = true;
+    micBtn.classList.add("on");
+  } catch {
+    alert("Microfoon-toegang geweigerd of niet beschikbaar.");
+  }
+}
+
+// ====== Analyse ======
+const lerp = (a,b,t)=> a + (b-a)*t;
+
 function analyzeMotion(){
   if (!camOn || !camVideo.videoWidth) {
-    // langzame terugval naar rust
-    motionIntensity = smoothTo(motionIntensity, 0, 0.02);
+    motionIntensity = lerp(motionIntensity, 0, 0.02);
+    motionCenterX   = lerp(motionCenterX, 0.5, 0.02);
     return;
   }
 
@@ -76,7 +128,6 @@ function analyzeMotion(){
 
   let hits = 0, sumX = 0;
 
-  // scan in blokken
   for (let y=0; y<mh; y+=BLOCK){
     for (let x=0; x<mw; x+=BLOCK){
       let diffSum = 0, n=0;
@@ -97,153 +148,124 @@ function analyzeMotion(){
       }
     }
   }
-
-  // update prev frame
   prevFrame.data.set(curr.data);
 
-  // normaliseer intensiteit
   const rawIntensity = Math.min(1, hits / ((mw*mh)/(BLOCK*BLOCK)) * 3.0);
-  motionIntensity = smoothTo(motionIntensity, rawIntensity, 0.25);
-
-  // zwaartepunt
-  if (hits > 0) {
-    const cx = sumX / hits; // 0..1
-    motionCenterX = smoothTo(motionCenterX, cx, 0.2);
-  } else {
-    motionCenterX = smoothTo(motionCenterX, 0.5, 0.02);
-  }
-
-  // spawn ripples op enkele willekeurige “hits”
-  spawnRipplesFromMotion(curr, mw, mh, hits);
+  motionIntensity = lerp(motionIntensity, rawIntensity, 0.25);
+  motionCenterX   = lerp(motionCenterX, hits ? (sumX/hits) : 0.5, hits ? 0.2 : 0.02);
 }
 
-// ====== Rimpels ======
-const ripples = [];
-class Ripple {
-  constructor(x, y){
-    this.x = x; this.y = y;
-    this.r = 6 + Math.random()*4;
-    this.max = 160 + Math.random()*120;
-    this.alpha = 0.6;
-    this.line = 2;
+function analyzeAudio(){
+  if (!micOn || !analyserTime || !analyserFreq) {
+    audioLevel = lerp(audioLevel, 0, 0.05);
+    audioHue   = lerp(audioHue, 200, 0.02); // koelblauw
+    return;
   }
-  step(){
-    this.r += 2.2;
-    this.alpha *= 0.985;
-    this.line *= 0.995;
-    return (this.r < this.max && this.alpha > 0.02);
-  }
-  draw(ctx){
-    ctx.beginPath();
-    ctx.arc(this.x, this.y, this.r, 0, Math.PI*2);
-    ctx.strokeStyle = `rgba(178,247,239,${this.alpha})`;
-    ctx.lineWidth = this.line;
-    ctx.stroke();
-  }
-}
+  analyserTime.getFloatTimeDomainData(timeBuf);
+  const rmsVal = rms(timeBuf);                      // ~0..0.4
+  const leveled = Math.min(1, Math.max(0, (rmsVal - 0.01) * 8));
+  audioLevel = lerp(audioLevel, leveled, 0.3);
 
-function spawnRipplesFromMotion(curr, mw, mh, hits){
-  if (hits === 0) return;
-  // Pak ~3 random posities met sterke verschillen
-  const tries = 200; // aantal samples om hotspots te vinden
-  const picks = [];
-  for (let t=0; t<tries; t++){
-    const x = (Math.random()*mw)|0;
-    const y = (Math.random()*mh)|0;
-    const i = (y*mw + x)*4;
-    // gebruik luminantie als proxy voor detail; puur random is ook oké
-    const lum = curr.data[i]*0.2126 + curr.data[i+1]*0.7152 + curr.data[i+2]*0.0722;
-    if (lum > 30 && Math.random() < 0.02) {
-      picks.push({x,y});
-      if (picks.length >= 3) break;
-    }
-  }
-  const scaleX = canvas.width / mw;
-  const scaleY = canvas.height / mh;
-  for (const p of picks){
-    ripples.push(new Ripple(p.x*scaleX, p.y*scaleY));
-  }
+  analyserFreq.getByteFrequencyData(freqBuf);
+  const sc = spectralCentroid(freqBuf, micCtx.sampleRate, analyserFreq.fftSize); // Hz
+  // 150..3000 Hz → hue 200..330
+  const hue = 200 + Math.max(0, Math.min(1, (sc - 150) / (3000 - 150))) * 130;
+  audioHue = lerp(audioHue, hue, 0.2);
 }
 
 // ====== Visuals ======
 function drawBackground(){
+  // tint achtergrond richting audio-hue
+  const h = audioHue | 0;
   ctx.globalCompositeOperation = "source-over";
-  ctx.fillStyle = "rgba(11,16,32,0.12)";
+  ctx.fillStyle = `hsla(${h}, 55%, 10%, 0.12)`;
   ctx.fillRect(0,0,canvas.width,canvas.height);
 }
 
-function drawLayeredWaves(intensity, dir){
-  // intensity: 0..1, dir: -1..+1 (links→rechts)
+function drawWaves(intensity, dir, hue){
+  // intensity: 0..1, dir: -1..+1
   const w = canvas.width, h = canvas.height;
   const mid = h/2;
 
-  const A1 = lerp(18, 160, intensity); // amplitude groeit met beweging
+  const A1 = 20 + intensity * 180; // zichtbare amplitude
   const A2 = A1 * 0.55;
   const A3 = A1 * 0.3;
 
-  const k1 = (2*Math.PI)/w, k2 = k1*0.7, k3 = k1*0.4;
+  const k1 = (2*Math.PI)/w, k2 = k1*0.75, k3 = k1*0.45;
 
-  // snelheid en richting: base speed + extra als er beweging is
-  const base = 0.0014;
-  const extra = 0.0012 * intensity;
-  const sign = Math.sign(dir); // -1 (links), +1 (rechts), 0 (midden)
-  const t = performance.now() * (base + extra) * (sign === 0 ? 1 : (1 + 0.3*Math.abs(dir))) * (sign || 1);
+  const base = 0.0010;
+  const extra = 0.0022 * intensity;
+  const sign = Math.sign(dir) || 1;
+  const t = performance.now() * (base + extra) * (1 + 0.4*Math.abs(dir)) * sign;
 
-  const c1 = "#7bdff2", c2 = "#b2f7ef", c3 = "#eff7f6";
+  const c1 = `hsla(${hue}, 80%, 70%, 1)`;
+  const c2 = `hsla(${hue}, 75%, 78%, .9)`;
+  const c3 = `hsla(${hue}, 85%, 88%, .8)`;
 
   ctx.beginPath();
   for (let x=0; x<=w; x+=4){
     const y = mid + A1*Math.sin(k1*x + t) + 0.35*A1*Math.sin(k1*x*0.5 + t*0.6);
     if (x===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
   }
-  ctx.lineWidth = 5; ctx.strokeStyle = c1; ctx.globalCompositeOperation = "lighter"; ctx.stroke();
+  ctx.lineWidth = 6; ctx.strokeStyle = c1; ctx.globalCompositeOperation = "lighter"; ctx.stroke();
 
   ctx.beginPath();
   for (let x=0; x<=w; x+=5){
     const y = mid + A2*Math.sin(k2*x + t*0.85);
     if (x===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
   }
-  ctx.lineWidth = 3; ctx.strokeStyle = c2; ctx.stroke();
+  ctx.lineWidth = 3.5; ctx.strokeStyle = c2; ctx.stroke();
 
   ctx.beginPath();
   for (let x=0; x<=w; x+=6){
     const y = mid + A3*Math.sin(k3*x + t*0.65);
     if (x===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
   }
-  ctx.lineWidth = 2; ctx.strokeStyle = "#eff7f6cc"; ctx.stroke();
+  ctx.lineWidth = 2.2; ctx.strokeStyle = c3; ctx.stroke();
 }
 
-function drawRipples(){
-  if (!ripples.length) return;
-  ctx.globalCompositeOperation = "lighter";
-  for (let i=ripples.length-1; i>=0; i--){
-    const alive = ripples[i].step();
-    ripples[i].draw(ctx);
-    if (!alive) ripples.splice(i,1);
-  }
-}
-
+// ====== Loop ======
 let raf = 0;
 function loop(){
   analyzeMotion();
+  analyzeAudio();
 
-  // map centers: 0..1 → -1..+1
+  // combineer: 60% beweging, 40% audio
+  const intensity = Math.min(1, 0.6*motionIntensity + 0.4*audioLevel);
   const dir = (motionCenterX - 0.5) * 2;
+  const hue = audioHue;
 
   drawBackground();
-  drawLayeredWaves(motionIntensity, dir);
-  drawRipples();
+  drawWaves(intensity, dir, hue);
 
   raf = requestAnimationFrame(loop);
 }
 
 // ====== UI ======
-enableCamBtn.addEventListener("click", enableCamera);
+enableCamBtn.addEventListener("click", async ()=>{
+  await enableCamera();
+  // overlay pas weg als tenminste één input actief is:
+  if (camOn || micOn) centerOverlay.style.display = "none";
+});
+enableMicBtn.addEventListener("click", async ()=>{
+  await enableMic();
+  if (camOn || micOn) centerOverlay.style.display = "none";
+});
+micBtn.addEventListener("click", async ()=>{
+  if (!micOn) {
+    await enableMic(); // user gesture → AudioContext mag starten
+  } else {
+    // mic uitzetten (pauze analyse, laat permissie-track lopen om simpeler te houden)
+    micOn = false;
+    micBtn.classList.remove("on");
+    // optioneel: micCtx.suspend();
+  }
+});
 infoBtn.addEventListener("click", ()=> infoModal.setAttribute("aria-hidden","false"));
 closeInfo.addEventListener("click", ()=> infoModal.setAttribute("aria-hidden","true"));
 document.addEventListener("keydown",(e)=>{
   if (e.key === "Escape") infoModal.setAttribute("aria-hidden","true");
 });
 
-// Start visuals meteen (kabbelt autonoom); camera voegt interactie toe
+// Start visuals meteen
 loop();

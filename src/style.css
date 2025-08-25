@@ -2,10 +2,6 @@
   --bg: #0b1020;
   --fg: #e9eef9;
   --muted: #cfd8f6;
-
-  --p1: #7bdff2;  /* hoofdkleur */
-  --p2: #b2f7ef;  /* accent */
-  --p3: #eff7f6;  /* glow */
 }
 
 * { box-sizing: border-box; }
@@ -23,7 +19,7 @@ body {
 /* Verborgen webcamvideo (alleen voor analyse) */
 #cam { display:none; }
 
-/* Persistente mini brand in de hoek */
+/* Brand */
 .brand{
   position: fixed; left: 1rem; top: 1rem;
   background: rgba(0,0,0,.35);
@@ -42,7 +38,7 @@ body {
 }
 .word{ letter-spacing: .06em; }
 
-/* Centrale overlay voor camera-toestemming */
+/* Overlay */
 .overlay{
   position: fixed; left:50%; top:50%; transform: translate(-50%,-50%);
   text-align:center;
@@ -52,7 +48,7 @@ body {
   backdrop-filter: blur(8px);
   box-shadow: 0 8px 24px rgba(0,0,0,.35);
   z-index: 3;
-  max-width: min(92vw, 560px);
+  max-width: min(92vw, 640px);
 }
 .bigtitle{
   margin:.2em 0 .1em;
@@ -62,37 +58,35 @@ body {
 }
 .tagline { margin:0 0 .9rem; color: var(--muted); }
 .hint    { margin:.7rem 0 0; font-size:.92rem; color: var(--muted); }
+.btnrow  { display:flex; gap:.6rem; justify-content:center; flex-wrap:wrap; }
 
 .btn{
   margin:.2rem; padding:.65rem 1.1rem;
   border:none; border-radius: 12px;
-  background: var(--p1); color:#0b1020;
+  background: #7bdff2; color:#0b1020;
   font-weight:600; cursor:pointer;
   transition: transform .08s ease, background .2s ease;
 }
-.btn:hover{ transform: translateY(-1px); background: var(--p2); }
+.btn:hover{ transform: translateY(-1px); background: #b2f7ef; }
 .btn:active{ transform: translateY(0); }
+.btn.alt{ background:#d1c1ff; }
+.btn.alt:hover{ background:#e5dcff; }
 
-/* Icon knoppen */
-.icon-btn{
+/* Floating Action Buttons */
+.fab{
   position: fixed;
   width: 56px; height: 56px; border-radius: 999px;
   border: 1px solid rgba(255,255,255,.14);
-  background: rgba(0,0,0,.38); color: var(--fg);
+  background: rgba(0,0,0,.42); color: var(--fg);
   cursor: pointer;
   backdrop-filter: blur(8px);
   box-shadow: 0 10px 28px rgba(0,0,0,.35);
-  display: grid; place-items: center;
-  z-index: 2;
-  right: 1rem; top: 1rem;
+  z-index: 2; font-size: 20px; font-weight: 700;
 }
-.icon-btn .icon{
-  display:inline-block;
-  width: 1em; height: 1em;
-  font-weight: 600; font-size: 22px;
-  line-height: 1; text-align: center;
-}
-.icon-btn:hover{ background: rgba(0,0,0,.48); }
+.top-right    { right: 1rem; top: 1rem; }
+.bottom-right { right: 1rem; bottom: 1rem; }
+.fab:hover    { background: rgba(0,0,0,.52); }
+.fab.on       { background: rgba(123,223,242,.25); border-color: rgba(123,223,242,.6); }
 
 /* Info modal */
 .modal{
@@ -115,7 +109,7 @@ body {
 .modal-card h2{ margin-top:.2rem; }
 .modal-card p{ line-height: 1.6; }
 .modal-card .footnote{ margin-top:.8rem; font-size:.95rem; color: var(--muted); }
-.modal-card a{ color: var(--p1); text-decoration: none; }
+.modal-card a{ color: #7bdff2; text-decoration: none; }
 
 .close{
   position:absolute; right:.4rem; top:.35rem;
@@ -125,7 +119,7 @@ body {
   font-size: 20px; cursor: pointer;
 }
 
-/* Subtiele vignette */
+/* Vignette */
 body::after{
   content:""; position: fixed; inset: 0; pointer-events:none;
   background: radial-gradient(1200px 800px at 50% -10%, transparent 40%, rgba(0,0,0,.25) 85%, rgba(0,0,0,.55) 100%);

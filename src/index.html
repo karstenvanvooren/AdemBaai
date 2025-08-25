@@ -3,42 +3,44 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Adem Baai</title>
+  <title>Beweeg Baai</title>
   <!-- Poppins -->
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="./style.css" />
 </head>
 <body>
   <!-- Visuals -->
-  <canvas id="viz" aria-label="Visualisatie van golven gereageerd door beweging" role="img"></canvas>
+  <canvas id="viz" aria-label="Visualisatie van golven gestuurd door beweging en geluid" role="img"></canvas>
 
   <!-- Verborgen webcamvideo (alleen voor analyse) -->
   <video id="cam" playsinline muted autoplay></video>
 
   <!-- Persistente mini-header -->
   <header class="brand">
-    <h1><span class="word">Adem</span> <span class="word">Baai</span></h1>
+    <h1><span class="word">Beweeg</span> <span class="word">Baai</span></h1>
   </header>
 
-  <!-- Midden overlay (camera-permissie) -->
+  <!-- Midden overlay (permissies) -->
   <div id="centerOverlay" class="overlay" role="dialog" aria-modal="true" aria-labelledby="overlayTitle">
-    <h2 id="overlayTitle" class="bigtitle"><span class="word">Adem</span> <span class="word">Baai</span></h2>
-    <p class="tagline">Beweeg je handen — de golven reageren.</p>
-    <button id="enableCamBtn" class="btn">Camera aanzetten</button>
-    <p class="hint">Zonder camera kabbelt de baai rustig. Met camera sturen je handbewegingen de hoogte & richting van de golven.</p>
+    <h2 id="overlayTitle" class="bigtitle"><span class="word">Beweeg</span> <span class="word">Baai</span></h2>
+    <p class="tagline">Beweeg of maak geluid — de golven reageren zichtbaar in hoogte, richting en kleur.</p>
+    <div class="btnrow">
+      <button id="enableCamBtn" class="btn">Camera aanzetten</button>
+      <button id="enableMicBtn" class="btn alt">Microfoon aanzetten</button>
+    </div>
+    <p class="hint">Zonder permissies kabbelt de baai rustig; met camera/mic wordt hij responsief.</p>
   </div>
 
-  <!-- Info knop -->
-  <button id="infoBtn" class="icon-btn" aria-label="Info over Adem Baai" title="Info">
-    <span class="icon">i</span>
-  </button>
+  <!-- Vaste knoppen (altijd zichtbaar) -->
+  <button id="infoBtn" class="fab top-right" aria-label="Info" title="Info">i</button>
+  <button id="micBtn"  class="fab bottom-right" aria-label="Mic aan/uit" title="Mic 🎙️">🎙️</button>
 
   <!-- Info modal -->
   <div id="infoModal" class="modal" aria-hidden="true" role="dialog" aria-modal="true">
     <div class="modal-card" role="document">
       <button id="closeInfo" class="close" aria-label="Sluiten">×</button>
-      <h2>Adem Baai — Info</h2>
-      <p>Een kalmerende, schermvullende “baai” die jouw beweging vertaalt naar water: meer handbeweging = hogere, levendigere golven; de kant met meeste beweging bepaalt de richting. Alles draait lokaal in je browser—er wordt niets opgeslagen.</p>
+      <h2>Beweeg Baai — Info</h2>
+      <p>Een schermvullende “baai” die jouw beweging en geluid vertaalt naar watergedrag: meer beweging = hogere en snellere golven, de dominante kant bepaalt de richting; klankkleur van het geluid stuurt de kleurtoon. Alles draait lokaal; er wordt niets opgeslagen.</p>
       <p class="footnote">Meer info & code: <a href="https://github.com/karstenvanvooren/AdemBaai" target="_blank" rel="noopener">GitHub</a></p>
     </div>
   </div>
