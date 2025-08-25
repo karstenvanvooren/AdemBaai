@@ -1,20 +1,17 @@
 "use strict";
 
-// ===== DOM =====
+// ====== DOM ======
 const canvas = document.getElementById("viz");
 const ctx = canvas.getContext("2d");
-const startBtn = document.getElementById("startBtn");
-const stopBtn  = document.getElementById("stopBtn");
-const calBtn   = document.getElementById("calBtn");
+const centerOverlay = document.getElementById("centerOverlay");
+const enableMicBtn  = document.getElementById("enableMicBtn");
+const infoBtn       = document.getElementById("infoBtn");
+const infoModal     = document.getElementById("infoModal");
+const closeInfo     = document.getElementById("closeInfo");
 
-const paletteSel = document.getElementById("palette");
-const reducedEl  = document.getElementById("reduced");
-const contrastEl = document.getElementById("contrast");
-const gainEl     = document.getElementById("gain");
-
-// ===== Canvas DPI =====
+// ====== Canvas DPI ======
 function resize(){
-  const dpr = Math.max(1, Math.min(2, window.devicePixelRatio||1));
+  const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
   const w = Math.floor(window.innerWidth * dpr);
   const h = Math.floor(window.innerHeight * dpr);
   if (canvas.width !== w || canvas.height !== h) {
@@ -23,215 +20,137 @@ function resize(){
     ctx.setTransform(dpr,0,0,dpr,0,0);
   }
 }
-resize();
-addEventListener("resize", resize);
+resize(); addEventListener("resize", resize);
 
-// ===== State =====
-let running = false, raf = 0;
-let audioCtx, analyser, timeData;
+// ====== Audio / adem ======
+let analyser = null, timeData = null, audioCtx = null, hasMic = false;
+let env = 0, baseline = 0.02;
+const attack = 0.12, release = 0.03, baselineFollow = 0.001;
+let breathGain = 3.5;
 
-// Adem-envelope + baseline
-let env = 0;
-let baseline = 0.02;
-let attack = 0.12;    // sneller omhoog
-let release = 0.03;   // rustiger omlaag
-let baselineFollow = 0.001; // traag meeschuiven met ruis
-
-let breathGain = parseFloat(gainEl.value || "3.5");
-let reduced = false;
-
-// ===== Helpers =====
 function rms(buf){
-  let sum = 0;
-  for (let i=0;i<buf.length;i++){ const s=buf[i]; sum += s*s; }
-  return Math.sqrt(sum / buf.length);
+  let s=0; for (let i=0;i<buf.length;i++){ const v=buf[i]; s+=v*v; }
+  return Math.sqrt(s / buf.length);
 }
-function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
 
-// ===== UI bindings =====
-function applyPalette(name){
-  document.body.classList.remove("calm","focus","playful");
-  document.body.classList.add(name);
-  localStorage.setItem("ab_palette", name);
-}
-function applyReduced(on){
-  reduced = on;
-  localStorage.setItem("ab_reduced", on?"1":"0");
-}
-function applyContrast(on){
-  document.body.classList.toggle("high-contrast", on);
-  localStorage.setItem("ab_contrast", on?"1":"0");
-}
-function loadSettings(){
-  const p = localStorage.getItem("ab_palette") || "calm";
-  const r = localStorage.getItem("ab_reduced") === "1";
-  const c = localStorage.getItem("ab_contrast") === "1";
-  const g = parseFloat(localStorage.getItem("ab_gain") || "3.5");
-
-  paletteSel.value = p; applyPalette(p);
-  reducedEl.checked = r; applyReduced(r);
-  contrastEl.checked = c; applyContrast(c);
-  gainEl.value = g; breathGain = g;
-}
-loadSettings();
-
-paletteSel.addEventListener("change", ()=> applyPalette(paletteSel.value));
-reducedEl.addEventListener("change", ()=> applyReduced(reducedEl.checked));
-contrastEl.addEventListener("change", ()=> applyContrast(contrastEl.checked));
-gainEl.addEventListener("input", ()=>{
-  breathGain = parseFloat(gainEl.value);
-  localStorage.setItem("ab_gain", breathGain.toString());
-});
-
-// ===== Audio start/stop =====
-async function start(){
-  if (running) return;
-  let stream;
-  try {
-    stream = await navigator.mediaDevices.getUserMedia({
+async function enableMic(){
+  try{
+    const stream = await navigator.mediaDevices.getUserMedia({
       audio: { echoCancellation:false, noiseSuppression:false, autoGainControl:false },
       video: false
     });
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const src = audioCtx.createMediaStreamSource(stream);
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 2048;
+    analyser.smoothingTimeConstant = 0.9;
+    src.connect(analyser);
+    timeData = new Float32Array(analyser.fftSize);
+
+    // korte baseline-kalibratie
+    const t0 = performance.now();
+    while (performance.now() - t0 < 500) {
+      analyser.getFloatTimeDomainData(timeData);
+      baseline = 0.9*baseline + 0.1*rms(timeData);
+      await new Promise(r=>setTimeout(r,16));
+    }
+
+    hasMic = true;
+    centerOverlay.style.display = "none";
   } catch {
-    alert("Geef microfoon-toegang en draai via Live Server (localhost).");
-    return;
-  }
-
-  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  const source = audioCtx.createMediaStreamSource(stream);
-
-  analyser = audioCtx.createAnalyser();
-  analyser.fftSize = 2048;
-  analyser.smoothingTimeConstant = 0.9;
-  source.connect(analyser);
-  timeData = new Float32Array(analyser.fftSize);
-
-  // korte baseline-kalibratie
-  calBtn.disabled = false;
-  await calibrate(500);
-
-  running = true;
-  startBtn.disabled = true;
-  stopBtn.disabled = false;
-
-  loop();
-}
-
-function stop(){
-  if (!running) return;
-  running = false;
-  cancelAnimationFrame(raf);
-  startBtn.disabled = false;
-  stopBtn.disabled = true;
-  calBtn.disabled = true;
-  if (audioCtx && audioCtx.state !== "closed") audioCtx.suspend();
-}
-
-async function calibrate(ms=1000){
-  if (!analyser) return;
-  const t0 = performance.now();
-  while (performance.now() - t0 < ms) {
-    analyser.getFloatTimeDomainData(timeData);
-    baseline = 0.9*baseline + 0.1*rms(timeData);
-    await new Promise(r=>setTimeout(r, 16));
+    alert("Microfoon-toegang geweigerd of niet beschikbaar. De baai blijft wel doorlopen.");
   }
 }
 
-// ===== Visuals =====
-function paletteColors(){
-  const s = getComputedStyle(document.body);
-  return [s.getPropertyValue("--p1").trim(), s.getPropertyValue("--p2").trim(), s.getPropertyValue("--p3").trim()];
-}
-
+// ====== Visuals ======
 function drawBackground(){
-  // zachte filmische fade
   ctx.globalCompositeOperation = "source-over";
-  ctx.fillStyle = reduced ? "rgba(11,16,32,0.18)" : "rgba(11,16,32,0.12)";
+  ctx.fillStyle = "rgba(11,16,32,0.12)";
   ctx.fillRect(0,0,canvas.width,canvas.height);
 }
 
-function drawLayeredWaves(amplitude){
+function drawLayeredWaves(breath){
   const w = canvas.width, h = canvas.height;
-  const [c1,c2,c3] = paletteColors();
-
   const mid = h/2;
-  const baseA = clamp(amplitude, 0, 1.2);
-  const A1 = Math.min(140, baseA * 320);
+
+  // basis amplitude
+  const A1 = Math.min(140, breath * 320);
   const A2 = A1 * 0.55;
   const A3 = A1 * 0.3;
 
-  const k1 = (2*Math.PI)/w;
-  const k2 = k1*0.7;
-  const k3 = k1*0.4;
+  const k1 = (2*Math.PI)/w, k2 = k1*0.7, k3 = k1*0.4;
 
-  const speed = reduced ? 0.0012 : 0.0018;
-  const t = performance.now() * (speed + baseA*0.0005);
+  // snelheid licht afhankelijk van adem
+  const t = performance.now() * (0.0018 + breath*0.0005);
 
-  // laag 1 (diep)
+  // kleurtjes
+  const c1 = "#7bdff2", c2 = "#b2f7ef", c3 = "#eff7f6";
+
+  // laag 1
   ctx.beginPath();
   for (let x=0; x<=w; x+=4){
-    const y = mid + A1 * Math.sin(k1*x + t) + 0.35*A1*Math.sin(k1*x*0.5 + t*0.6);
+    const y = mid + A1*Math.sin(k1*x + t) + 0.35*A1*Math.sin(k1*x*0.5 + t*0.6);
     if (x===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
   }
-  ctx.lineWidth = 5;
-  ctx.strokeStyle = c1;
-  ctx.globalCompositeOperation = "lighter";
-  ctx.stroke();
+  ctx.lineWidth = 5; ctx.strokeStyle = c1; ctx.globalCompositeOperation = "lighter"; ctx.stroke();
 
-  // laag 2 (midden)
+  // laag 2
   ctx.beginPath();
   for (let x=0; x<=w; x+=5){
-    const y = mid + A2 * Math.sin(k2*x + t*0.8);
+    const y = mid + A2*Math.sin(k2*x + t*0.85);
     if (x===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
   }
-  ctx.lineWidth = 3;
-  ctx.strokeStyle = c2;
-  ctx.stroke();
+  ctx.lineWidth = 3; ctx.strokeStyle = c2; ctx.stroke();
 
   // laag 3 (glow)
   ctx.beginPath();
   for (let x=0; x<=w; x+=6){
-    const y = mid + A3 * Math.sin(k3*x + t*0.6);
+    const y = mid + A3*Math.sin(k3*x + t*0.65);
     if (x===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
   }
-  ctx.lineWidth = 2;
-  ctx.strokeStyle = `${c3}cc`; // iets transparant
-  ctx.stroke();
+  ctx.lineWidth = 2; ctx.strokeStyle = "#eff7f6cc"; ctx.stroke();
 }
 
+function computeBreath(){
+  if (hasMic && analyser && timeData){
+    analyser.getFloatTimeDomainData(timeData);
+    const level = rms(timeData);
+    baseline = (1 - baselineFollow)*baseline + baselineFollow*level;
+    const x = Math.max(0, level - baseline);
+    env = (x > env) ? env + attack*(x-env) : env + release*(x-env);
+    return Math.min(1.2, env * breathGain);
+  } else {
+    // LFO fallback (zodat het altijd leeft)
+    const t = performance.now() * 0.0012;
+    const lfo = (Math.sin(t) + 1) * 0.25; // 0..0.5
+    return lfo;
+  }
+}
+
+let raf = 0;
 function loop(){
-  // adem meten
-  analyser.getFloatTimeDomainData(timeData);
-  const level = rms(timeData);
-
-  // baseline traag volgen
-  baseline = (1 - baselineFollow)*baseline + baselineFollow*level;
-
-  // envelope met attack/release
-  const x = Math.max(0, level - baseline);
-  env = (x > env)
-    ? env + attack * (x - env)
-    : env + release * (x - env);
-
-  const breath = Math.min(1.2, env * breathGain);
-
+  const breath = computeBreath();
   drawBackground();
   drawLayeredWaves(breath);
-
   raf = requestAnimationFrame(loop);
 }
 
-// ===== Events =====
-startBtn.addEventListener("click", start);
-stopBtn .addEventListener("click", stop);
-calBtn  .addEventListener("click", ()=>calibrate(1000));
+// ====== UI ======
+enableMicBtn.addEventListener("click", enableMic);
 
-document.addEventListener("keydown", (e)=>{
-  if (e.key === "Enter") (running ? stop() : start());
-  if (e.key.toLowerCase() === "r"){ reducedEl.checked = !reducedEl.checked; applyReduced(reducedEl.checked); }
-  if (e.key.toLowerCase() === "h"){ contrastEl.checked = !contrastEl.checked; applyContrast(contrastEl.checked); }
-  if (e.key.toLowerCase() === "c"){ calibrate(1000); }
+infoBtn.addEventListener("click", ()=>{
+  infoModal.setAttribute("aria-hidden","false");
 });
+closeInfo.addEventListener("click", ()=>{
+  infoModal.setAttribute("aria-hidden","true");
+});
+document.addEventListener("keydown",(e)=>{
+  if (e.key === "Escape") infoModal.setAttribute("aria-hidden","true");
+});
+
+// Start visuals meteen
+loop();
+
 
 
 
