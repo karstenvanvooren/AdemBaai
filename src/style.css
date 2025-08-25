@@ -69,8 +69,6 @@ body {
 }
 .btn:hover{ transform: translateY(-1px); background: #b2f7ef; }
 .btn:active{ transform: translateY(0); }
-.btn.alt{ background:#d1c1ff; }
-.btn.alt:hover{ background:#e5dcff; }
 
 /* Floating Action Buttons */
 .fab{
