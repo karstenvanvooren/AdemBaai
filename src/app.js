@@ -3,11 +3,13 @@
 // ====== DOM ======
 const canvas = document.getElementById("viz");
 const ctx = canvas.getContext("2d");
+
 const centerOverlay = document.getElementById("centerOverlay");
 const enableMicBtn  = document.getElementById("enableMicBtn");
-const infoBtn       = document.getElementById("infoBtn");
-const infoModal     = document.getElementById("infoModal");
-const closeInfo     = document.getElementById("closeInfo");
+
+const infoBtn   = document.getElementById("infoBtn");
+const infoModal = document.getElementById("infoModal");
+const closeInfo = document.getElementById("closeInfo");
 
 // ====== Canvas DPI ======
 function resize(){
@@ -56,6 +58,7 @@ async function enableMic(){
     }
 
     hasMic = true;
+    // Verberg enkel de overlay; de mini-header blijft zichtbaar
     centerOverlay.style.display = "none";
   } catch {
     alert("Microfoon-toegang geweigerd of niet beschikbaar. De baai blijft wel doorlopen.");
@@ -83,7 +86,7 @@ function drawLayeredWaves(breath){
   // snelheid licht afhankelijk van adem
   const t = performance.now() * (0.0018 + breath*0.0005);
 
-  // kleurtjes
+  // kleuren (calm palette)
   const c1 = "#7bdff2", c2 = "#b2f7ef", c3 = "#eff7f6";
 
   // laag 1
@@ -137,13 +140,8 @@ function loop(){
 
 // ====== UI ======
 enableMicBtn.addEventListener("click", enableMic);
-
-infoBtn.addEventListener("click", ()=>{
-  infoModal.setAttribute("aria-hidden","false");
-});
-closeInfo.addEventListener("click", ()=>{
-  infoModal.setAttribute("aria-hidden","true");
-});
+infoBtn.addEventListener("click", ()=> infoModal.setAttribute("aria-hidden","false"));
+closeInfo.addEventListener("click", ()=> infoModal.setAttribute("aria-hidden","true"));
 document.addEventListener("keydown",(e)=>{
   if (e.key === "Escape") infoModal.setAttribute("aria-hidden","true");
 });

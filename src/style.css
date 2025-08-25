@@ -20,7 +20,26 @@ body {
 /* Canvas fullscreen */
 #viz { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; }
 
-/* Centrale overlay */
+/* Persistente mini brand in de hoek */
+.brand{
+  position: fixed; left: 1rem; top: 1rem;
+  background: rgba(0,0,0,.35);
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 14px;
+  padding: .4rem .7rem;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 8px 24px rgba(0,0,0,.25);
+  z-index: 2;
+}
+.brand h1{
+  margin:0;
+  font-size: clamp(1.1rem, 1.5vw, 1.4rem);
+  font-weight: 600;
+  letter-spacing: .04em;
+}
+.word{ letter-spacing: .06em; }
+
+/* Centrale overlay voor mic-toestemming */
 .overlay{
   position: fixed; left:50%; top:50%; transform: translate(-50%,-50%);
   text-align:center;
@@ -29,13 +48,20 @@ body {
   border-radius: 16px;
   backdrop-filter: blur(8px);
   box-shadow: 0 8px 24px rgba(0,0,0,.35);
+  z-index: 3;
+  max-width: min(92vw, 560px);
 }
-.overlay h1{ margin:.2em 0; font-size: clamp(1.6rem, 2vw, 2.2rem); }
-.tagline   { margin:0 0 .8rem; color: var(--muted); }
-.hint      { margin:.6rem 0 0; font-size:.9rem; color: var(--muted); }
+.bigtitle{
+  margin:.2em 0 .1em;
+  font-size: clamp(1.8rem, 3.2vw, 2.4rem);
+  font-weight: 600;
+  letter-spacing: .04em;
+}
+.tagline { margin:0 0 .9rem; color: var(--muted); }
+.hint    { margin:.7rem 0 0; font-size:.92rem; color: var(--muted); }
 
 .btn{
-  margin:.2rem; padding:.6rem 1rem;
+  margin:.2rem; padding:.65rem 1.1rem;
   border:none; border-radius: 12px;
   background: var(--p1); color:#0b1020;
   font-weight:600; cursor:pointer;
@@ -44,23 +70,32 @@ body {
 .btn:hover{ transform: translateY(-1px); background: var(--p2); }
 .btn:active{ transform: translateY(0); }
 
-/* Info knop (rechtsboven) */
+/* Info knop — groter en duidelijk */
 .icon-btn{
   position: fixed; right: 1rem; top: 1rem;
-  width: 40px; height: 40px; border-radius: 999px;
-  border: 1px solid rgba(255,255,255,.12);
-  background: rgba(0,0,0,.35); color: var(--fg);
-  font-size: 18px; cursor: pointer;
-  backdrop-filter: blur(6px);
-  box-shadow: 0 6px 18px rgba(0,0,0,.25);
+  width: 56px; height: 56px; border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.14);
+  background: rgba(0,0,0,.38); color: var(--fg);
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 10px 28px rgba(0,0,0,.35);
+  display: grid; place-items: center;
+  z-index: 2;
 }
-.icon-btn:hover{ background: rgba(0,0,0,.45); }
+.icon-btn .icon{
+  display:inline-block;
+  width: 1em; height: 1em;
+  font-weight: 600; font-size: 22px;
+  line-height: 1; text-align: center;
+}
+.icon-btn:hover{ background: rgba(0,0,0,.48); }
 
 /* Info modal */
 .modal{
   position: fixed; inset:0;
   display: none; align-items: center; justify-content: center;
   background: rgba(0,0,0,.45);
+  z-index: 4;
 }
 .modal[aria-hidden="false"]{ display: flex; }
 .modal-card{
@@ -74,23 +109,25 @@ body {
   box-shadow: 0 10px 32px rgba(0,0,0,.5);
 }
 .modal-card h2{ margin-top:.2rem; }
-.modal-card p{ line-height: 1.55; }
-.modal-card .footnote{ margin-top:.6rem; font-size:.95rem; color: var(--muted); }
+.modal-card p{ line-height: 1.6; }
+.modal-card .footnote{ margin-top:.8rem; font-size:.95rem; color: var(--muted); }
 .modal-card a{ color: var(--p1); text-decoration: none; }
 
 .close{
-  position:absolute; right:.4rem; top:.2rem;
-  width: 36px; height: 36px; border-radius: 999px;
+  position:absolute; right:.4rem; top:.35rem;
+  width: 40px; height: 40px; border-radius: 999px;
   border: 1px solid rgba(255,255,255,.12);
   background: rgba(0,0,0,.35); color: var(--fg);
-  font-size: 18px; cursor: pointer;
+  font-size: 20px; cursor: pointer;
 }
 
 /* Subtiele vignette voor diepte */
 body::after{
   content:""; position: fixed; inset: 0; pointer-events:none;
   background: radial-gradient(1200px 800px at 50% -10%, transparent 40%, rgba(0,0,0,.25) 85%, rgba(0,0,0,.55) 100%);
+  z-index: 1;
 }
+
 
 
 

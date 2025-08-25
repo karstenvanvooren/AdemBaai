@@ -3,33 +3,40 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>AdemBaai</title>
+  <title>Adem Baai</title>
   <!-- Poppins -->
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="./style.css" />
 </head>
 <body>
+  <!-- Visuals -->
   <canvas id="viz" aria-label="Visualisatie van adem-golven" role="img"></canvas>
 
-  <!-- Midden overlay (alleen om mic te activeren) -->
-  <div id="centerOverlay" class="overlay">
-    <h1>AdemBaai</h1>
+  <!-- Persistente mini-header (blijft ook na mic-aanzetten zichtbaar) -->
+  <header class="brand">
+    <h1><span class="word">Adem</span> <span class="word">Baai</span></h1>
+  </header>
+
+  <!-- Midden overlay (enkel voor mic-permissie) -->
+  <div id="centerOverlay" class="overlay" role="dialog" aria-modal="true" aria-labelledby="overlayTitle">
+    <h2 id="overlayTitle" class="bigtitle"><span class="word">Adem</span> <span class="word">Baai</span></h2>
     <p class="tagline">Jouw adem zichtbaar in golven</p>
     <button id="enableMicBtn" class="btn">Mic aanzetten</button>
-    <p class="hint">Draait al — zet de microfoon aan om je adem te laten meebewegen.</p>
+    <p class="hint">De baai draait al — zet de microfoon aan om je adem te laten meebewegen.</p>
   </div>
 
-  <!-- Info knop rechtsboven -->
-  <button id="infoBtn" class="icon-btn" aria-label="Info over AdemBaai">ⓘ</button>
+  <!-- Info knop (groter & duidelijker) -->
+  <button id="infoBtn" class="icon-btn" aria-label="Info over Adem Baai" title="Info">
+    <span class="icon">i</span>
+  </button>
 
   <!-- Info modal -->
   <div id="infoModal" class="modal" aria-hidden="true" role="dialog" aria-modal="true">
     <div class="modal-card" role="document">
       <button id="closeInfo" class="close" aria-label="Sluiten">×</button>
-      <h2>AdemBaai</h2>
-      <p><strong>Concept:</strong> Een kalmerende, schermvullende “baai” die mee ademt met jouw ademhaling en zachtjes rimpelt bij beweging.</p>
-      <p><strong>Hoe werkt het?</strong> De microfoon (alleen lokaal, niets wordt opgeslagen) volgt de intensiteit van je adem. Die intensiteit stuurt de amplitude en het ritme van de golven. Zonder microfoon blijft de baai rustig doorlopen.</p>
-      <p><strong>Privacy:</strong> Alles draait lokaal in je browser; er wordt niets bewaard.</p>
+      <h2>Adem Baai — Info</h2>
+      <p><strong>Concept:</strong> Een kalmerende, schermvullende “baai” die mee ademt met jouw ademhaling. Zonder microfoon kabbelt de baai rustig door; met microfoon volgt de amplitude en het ritme jouw adem.</p>
+      <p><strong>Privacy:</strong> Alles draait lokaal in je browser. Er wordt niets opgenomen of opgeslagen.</p>
       <p class="footnote">Meer info & code: <a href="https://github.com/karstenvanvooren/AdemBaai" target="_blank" rel="noopener">GitHub</a></p>
     </div>
   </div>
@@ -37,6 +44,7 @@
   <script src="./app.js"></script>
 </body>
 </html>
+
 
 
 
