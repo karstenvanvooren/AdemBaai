@@ -6,14 +6,58 @@
   <title>AdemBaai</title>
   <link rel="stylesheet" href="./style.css" />
 </head>
-<body>
+<body class="calm">
   <canvas id="viz"></canvas>
+
   <div class="ui">
-    <h1>AdemBaai</h1>
-    <button id="startBtn">Start</button>
-    <button id="stopBtn" disabled>Stop</button>
+    <div class="brand">
+      <h1>AdemBaai</h1>
+      <p class="subtitle">Adem → golven • Rustige visuele feedback</p>
+    </div>
+
+    <div class="controls" role="group" aria-label="Instellingen">
+      <button id="startBtn" class="btn primary">Start</button>
+      <button id="stopBtn"  class="btn" disabled>Stop</button>
+      <button id="calBtn"   class="btn" disabled>Kalibreer</button>
+
+      <label class="select">
+        <span>Palet</span>
+        <select id="palette">
+          <option value="calm">Calm</option>
+          <option value="focus">Focus</option>
+          <option value="playful">Playful</option>
+        </select>
+      </label>
+
+      <label class="switch">
+        <input type="checkbox" id="reduced" />
+        <span>Reduced motion</span>
+      </label>
+      <label class="switch">
+        <input type="checkbox" id="contrast" />
+        <span>High contrast</span>
+      </label>
+
+      <label class="range">
+        <span>Gevoeligheid</span>
+        <input type="range" id="gain" min="1" max="6" step="0.1" value="3.5"/>
+      </label>
+    </div>
+
+    <details class="help">
+      <summary>Help</summary>
+      <ul>
+        <li><kbd>Enter</kbd> Start/Stop</li>
+        <li><kbd>R</kbd> Reduced motion</li>
+        <li><kbd>H</kbd> High contrast</li>
+        <li><kbd>C</kbd> Kalibreer</li>
+      </ul>
+      <p>Tip: draai via <strong>Live Server</strong> (localhost) en gebruik bij voorkeur de <strong>laptop-microfoon</strong>.</p>
+    </details>
   </div>
+
   <script src="./app.js"></script>
 </body>
 </html>
+
 
