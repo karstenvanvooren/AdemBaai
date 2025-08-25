@@ -16,16 +16,17 @@ const audioBtn  = document.getElementById("audioBtn");
 
 // ====== Canvas DPI ======
 function resize(){
-  const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
-  const w = Math.floor(window.innerWidth * dpr);
-  const h = Math.floor(window.innerHeight * dpr);
-  if (canvas.width !== w || canvas.height !== h) {
-    canvas.width = w; canvas.height = h;
-    canvas.style.width = "100vw"; canvas.style.height = "100vh";
-    ctx.setTransform(dpr,0,0,dpr,0,0);
-  }
+  // fysiek pixels × DPR
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width  = window.innerWidth * dpr;
+  canvas.height = window.innerHeight * dpr;
+  canvas.style.width  = window.innerWidth + "px";
+  canvas.style.height = window.innerHeight + "px";
+  ctx.setTransform(1,0,0,1,0,0); // reset transform
+  ctx.scale(dpr,dpr);           // schaal zodat 1 eenheid = 1 css pixel
 }
-resize(); addEventListener("resize", resize);
+resize();
+window.addEventListener("resize", resize);
 
 // ====== Webcam → beweging ======
 let camStream = null, camOn = false;
@@ -110,7 +111,7 @@ function analyzeMotion(){
   }
 }
 
-// ====== Audio feedback (synth) ======
+// ====== Audio feedback ======
 let outCtx = null, osc = null, filt = null, gain = null, audioOn = false;
 function initAudio(){
   if (outCtx) return;
@@ -142,79 +143,47 @@ function drawBackground(hue){
   ctx.fillRect(0,0,canvas.width,canvas.height);
 }
 
-/**
- * HORIZONTALE hoofdgolf exact op het midden (h/2).
- * - HandX bepaalt waar langs X de golf het sterkst is (lokale amplitude-boost)
- *   en beïnvloedt richting/snelheid.
- * - HandY bepaalt de grootte van de lokale boost, de kleur (hoger = warmer/lichter)
- *   en het audio-volume/toonhoogte.
- * - GEEN spiegeling.
- */
 function drawHorizontalWave(handX, handY, intensity){
-  const w = canvas.width, h = canvas.height;
+  const w = canvas.clientWidth;
+  const h = canvas.clientHeight;
+  const mid = h/2;  // altijd exact midden van het scherm
 
-  // baseline exact midden — visueel strak
-  const mid = Math.floor(h/2) + 0.5;
+  const xHandPx = handX * w;
+  const yInv    = 1 - handY; // boven=1, onder=0
 
-  const xHandPx = handX * w;      // 0..w (geen spiegeling)
-  const yInv    = 1 - handY;      // boven=1, onder=0
-
-  // kleur (boven → warmer/lichter)
+  // kleur
   const hue  = 200 + yInv*130 + (handX-0.5)*10;
   drawBackground(hue|0);
 
   // amplitude
-  const baseA = 18 + intensity*70;     // overal iets leven
-  const peakA = 70 + yInv*170;         // lokale piek (hoogte → groter)
-  const sigma = w * 0.18;              // kolombreedte onder je hand
+  const baseA = 18 + intensity*70;
+  const peakA = 70 + yInv*170;
+  const sigma = w * 0.18;
 
-  // golfparameters
+  // golf
   const k = (2*Math.PI)/w;
   const speed = 0.001 + 0.0020*(0.3 + 0.7*intensity);
-  const dirSign = Math.sign((handX-0.5)) || 1;   // links(-) / rechts(+)
+  const dirSign = Math.sign((handX-0.5)) || 1;
   const t = performance.now() * (speed * (1 + 0.4*Math.abs((handX-0.5)*2))) * dirSign;
 
-  // 3 lagen met lokale amplitude-boost rond xHandPx
   ctx.globalCompositeOperation = "lighter";
 
-  // laag 1
+  // hoofdgolf
   ctx.beginPath();
   for (let x=0; x<=w; x+=3){
     const dx = x - xHandPx;
-    const boost = Math.exp(-(dx*dx)/(2*sigma*sigma)); // 0..1
+    const boost = Math.exp(-(dx*dx)/(2*sigma*sigma));
     const A = baseA + peakA*boost;
     const y = mid + A*Math.sin(k*x + t) + 0.35*A*Math.sin(k*x*0.5 + t*0.6);
     if (x===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
   }
   ctx.lineWidth = 6; ctx.strokeStyle = `hsla(${hue}, 80%, 70%, 1)`; ctx.stroke();
 
-  // laag 2
-  ctx.beginPath();
-  for (let x=0; x<=w; x+=4){
-    const dx = x - xHandPx;
-    const boost = Math.exp(-(dx*dx)/(2*sigma*sigma));
-    const A = (baseA*0.55) + (peakA*0.55)*boost;
-    const y = mid + A*Math.sin(k*0.75*x + t*0.85);
-    if (x===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
-  }
-  ctx.lineWidth = 3.5; ctx.strokeStyle = `hsla(${hue}, 75%, 78%, .9)`; ctx.stroke();
-
-  // laag 3
-  ctx.beginPath();
-  for (let x=0; x<=w; x+=5){
-    const dx = x - xHandPx;
-    const boost = Math.exp(-(dx*dx)/(2*sigma*sigma));
-    const A = (baseA*0.3) + (peakA*0.3)*boost;
-    const y = mid + A*Math.sin(k*0.45*x + t*0.65);
-    if (x===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
-  }
-  ctx.lineWidth = 2.2; ctx.strokeStyle = `hsla(${hue}, 85%, 88%, .8)`; ctx.stroke();
-
-  // audio: hoger in beeld → hogere & luidere toon
+  // audio
   if (audioOn && outCtx){
     const baseFreq = 140;
     const pitchRange = 320;
-    const bend = (handX-0.5) * 60; // kleine links/rechts bend
+    const bend = (handX-0.5) * 60;
     const freq = baseFreq + yInv*pitchRange + bend;
     const vol  = Math.min(0.16, 0.02 + intensity*0.10 + yInv*0.10);
     setAudio(freq, vol);
@@ -222,11 +191,10 @@ function drawHorizontalWave(handX, handY, intensity){
 }
 
 // ====== Loop ======
-let raf = 0;
 function loop(){
   analyzeMotion();
   drawHorizontalWave(motionCenterX, motionCenterY, motionIntensity);
-  raf = requestAnimationFrame(loop);
+  requestAnimationFrame(loop);
 }
 
 // ====== UI ======
@@ -238,5 +206,5 @@ document.addEventListener("keydown",(e)=>{
   if (e.key === "Escape") infoModal.setAttribute("aria-hidden","true");
 });
 
-// Start visuals
+// Start
 loop();

@@ -1,0 +1,26 @@
+{
+  "name": "adembaai",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "serve src",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/karstenvanvooren/AdemBaai.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/karstenvanvooren/AdemBaai/issues"
+  },
+  "homepage": "https://github.com/karstenvanvooren/AdemBaai#readme",
+  "devDependencies": {
+    "serve": "^14.2.4"
+  }
+}
+
