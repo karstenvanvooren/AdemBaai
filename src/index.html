@@ -9,7 +9,7 @@
   <link rel="stylesheet" href="./style.css" />
 </head>
 <body>
-  <!-- Visuals -->
+  <!-- Visual -->
   <canvas id="viz" aria-label="Visualisatie van golven gestuurd door beweging" role="img"></canvas>
 
   <!-- Verborgen webcamvideo (alleen voor analyse) -->
@@ -23,27 +23,28 @@
   <!-- Midden overlay (camera-permissie) -->
   <div id="centerOverlay" class="overlay" role="dialog" aria-modal="true" aria-labelledby="overlayTitle">
     <h2 id="overlayTitle" class="bigtitle"><span class="word">Beweeg</span> <span class="word">Baai</span></h2>
-    <p class="tagline">Beweeg je handen — de golven reageren zichtbaar in hoogte, snelheid en richting.</p>
+    <p class="tagline">Beweeg je handen — de golf reageert in hoogte, kleur en muziek (piano links, viool rechts).</p>
     <div class="btnrow">
       <button id="enableCamBtn" class="btn">Camera aanzetten</button>
     </div>
-    <p class="hint">Zonder camera kabbelt de baai rustig; met camera wordt hij responsief. Geluid volgt je beweging.</p>
+    <p class="hint">Zonder camera kabbelt het rustig; met camera wordt het een instrument. Geluid start automatisch na je klik.</p>
   </div>
 
-  <!-- Info & Audio knoppen -->
+  <!-- Info knop -->
   <button id="infoBtn" class="fab top-right" aria-label="Info" title="Info">i</button>
-  <button id="audioBtn" class="fab bottom-right" aria-label="Audio aan/uit" title="Audio">♫</button>
 
   <!-- Info modal -->
   <div id="infoModal" class="modal" aria-hidden="true" role="dialog" aria-modal="true">
     <div class="modal-card" role="document">
       <button id="closeInfo" class="close" aria-label="Sluiten">×</button>
       <h2>Beweeg Baai — Info</h2>
-      <p>Een schermvullende “baai” die jouw beweging vertaalt naar watergedrag: meer beweging = hogere en snellere golven; de dominante kant bepaalt de richting. Daarnaast geeft een zachte toon auditieve feedback die meebeweegt met jouw beweging. Alles draait lokaal; er wordt niets opgeslagen.</p>
-      <p class="footnote">Meer info & code: <a href="https://github.com/karstenvanvooren/AdemBaai" target="_blank" rel="noopener">GitHub</a></p>
+      <p>Een schermvullende “baai” die jouw beweging vertaalt naar een horizontale golf. Links kies je pianoklanken, rechts viool. Hoogte (Y) bepaalt toonhoogte en helderheid; intensiteit bepaalt dynamiek. Alles draait lokaal in je browser.</p>
+      <p class="footnote">Code & instructies: je eigen GitHub repo.</p>
     </div>
   </div>
 
+  <!-- Audio lib (Tone.js) vóór je app.js -->
+  <script src="https://unpkg.com/tone"></script>
   <script src="./app.js"></script>
 </body>
 </html>

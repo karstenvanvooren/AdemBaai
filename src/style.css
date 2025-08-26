@@ -16,7 +16,7 @@ body {
 /* Canvas fullscreen */
 #viz { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; }
 
-/* Verborgen webcamvideo (alleen voor analyse) */
+/* Verborgen webcam */
 #cam { display:none; }
 
 /* Brand */
@@ -70,7 +70,7 @@ body {
 .btn:hover{ transform: translateY(-1px); background: #b2f7ef; }
 .btn:active{ transform: translateY(0); }
 
-/* Floating Action Buttons */
+/* Floating Action Button */
 .fab{
   position: fixed;
   width: 56px; height: 56px; border-radius: 999px;
@@ -81,10 +81,8 @@ body {
   box-shadow: 0 10px 28px rgba(0,0,0,.35);
   z-index: 2; font-size: 20px; font-weight: 700;
 }
-.top-right    { right: 1rem; top: 1rem; }
-.bottom-right { right: 1rem; bottom: 1rem; }
-.fab:hover    { background: rgba(0,0,0,.52); }
-.fab.on       { background: rgba(123,223,242,.25); border-color: rgba(123,223,242,.6); }
+.top-right { right: 1rem; top: 1rem; }
+.fab:hover { background: rgba(0,0,0,.52); }
 
 /* Info modal */
 .modal{

@@ -1,6 +1,6 @@
 "use strict";
 
-// ====== DOM ======
+/* ===================== DOM ===================== */
 const canvas = document.getElementById("viz");
 const ctx = canvas.getContext("2d");
 const camVideo  = document.getElementById("cam");
@@ -12,54 +12,40 @@ const infoBtn   = document.getElementById("infoBtn");
 const infoModal = document.getElementById("infoModal");
 const closeInfo = document.getElementById("closeInfo");
 
-const audioBtn  = document.getElementById("audioBtn");
-
-// ====== Canvas DPI ======
+/* ===================== Canvas / DPI ===================== */
 function resize(){
-  // fysiek pixels × DPR
   const dpr = window.devicePixelRatio || 1;
   canvas.width  = window.innerWidth * dpr;
   canvas.height = window.innerHeight * dpr;
   canvas.style.width  = window.innerWidth + "px";
   canvas.style.height = window.innerHeight + "px";
-  ctx.setTransform(1,0,0,1,0,0); // reset transform
-  ctx.scale(dpr,dpr);           // schaal zodat 1 eenheid = 1 css pixel
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.scale(dpr,dpr);
 }
 resize();
-window.addEventListener("resize", resize);
+addEventListener("resize", resize);
 
-// ====== Webcam → beweging ======
-let camStream = null, camOn = false;
-let motionCanvas = null, motionCtx = null, prevFrame = null;
-
-const MOTION_SCALE = 4;
-const BLOCK = 8;
-const MOTION_THRESH = 28;
-
-let motionIntensity = 0;   // 0..1
-let motionCenterX  = 0.5;  // 0..1 links→rechts
-let motionCenterY  = 0.5;  // 0..1 boven→onder
+/* ===================== Webcam → beweging ===================== */
+let camOn = false, motionCanvas, motionCtx, prevFrame;
+const MOTION_SCALE = 4, BLOCK = 8, MOTION_THRESH = 28;
+let motionIntensity = 0, motionCenterX = 0.5, motionCenterY = 0.5;
 
 const lerp = (a,b,t)=> a + (b-a)*t;
 
 async function enableCamera(){
   try {
-    camStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode:"user", width:{ideal:640}, height:{ideal:480} },
-      audio: false
-    });
-    camVideo.srcObject = camStream;
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode:"user" }, audio: false });
+    camVideo.srcObject = stream;
     await camVideo.play().catch(()=>{});
     camOn = true;
 
-    const w = Math.max(160, Math.floor(canvas.width / MOTION_SCALE));
-    const h = Math.max(120, Math.floor(canvas.height / MOTION_SCALE));
     motionCanvas = document.createElement("canvas");
-    motionCanvas.width = w; motionCanvas.height = h;
+    motionCanvas.width  = Math.max(160, Math.floor(canvas.width / MOTION_SCALE));
+    motionCanvas.height = Math.max(120, Math.floor(canvas.height / MOTION_SCALE));
     motionCtx = motionCanvas.getContext("2d", { willReadFrequently:true });
-    prevFrame = motionCtx.createImageData(w, h);
+    prevFrame = motionCtx.createImageData(motionCanvas.width, motionCanvas.height);
 
-    initAudio(); audioOn = true; audioBtn.classList.add("on");
+    await initAudio(); // start Tone.js na user gesture
     centerOverlay.style.display = "none";
   } catch {
     alert("Camera-toegang geweigerd of niet beschikbaar.");
@@ -67,31 +53,26 @@ async function enableCamera(){
 }
 
 function analyzeMotion(){
-  if (!camOn || !camVideo.videoWidth) {
-    motionIntensity = lerp(motionIntensity, 0, 0.02);
-    motionCenterX   = lerp(motionCenterX, 0.5, 0.02);
-    motionCenterY   = lerp(motionCenterY, 0.5, 0.02);
-    return;
-  }
+  if (!camOn || !camVideo.videoWidth) return;
+
   const mw = motionCanvas.width, mh = motionCanvas.height;
   motionCtx.drawImage(camVideo, 0, 0, mw, mh);
   const curr = motionCtx.getImageData(0, 0, mw, mh);
 
-  let hits = 0, sumX = 0, sumY = 0;
+  let hits=0,sumX=0,sumY=0;
   for (let y=0; y<mh; y+=BLOCK){
     for (let x=0; x<mw; x+=BLOCK){
-      let diffSum = 0, n=0;
+      let diffSum=0,n=0;
       for (let by=0; by<BLOCK && y+by<mh; by++){
-        const row = (y+by)*mw*4;
+        const row=(y+by)*mw*4;
         for (let bx=0; bx<BLOCK && x+bx<mw; bx++){
-          const i = row + (x+bx)*4;
-          const l1 = (prevFrame.data[i]*0.2126 + prevFrame.data[i+1]*0.7152 + prevFrame.data[i+2]*0.0722) || 0;
-          const l2 = (curr.data[i]*0.2126 + curr.data[i+1]*0.7152 + curr.data[i+2]*0.0722);
-          diffSum += Math.abs(l2 - l1);
-          n++;
+          const i=row+(x+bx)*4;
+          const l1=(prevFrame.data[i]*0.2126 + prevFrame.data[i+1]*0.7152 + prevFrame.data[i+2]*0.0722)||0;
+          const l2=(curr.data[i]*0.2126 + curr.data[i+1]*0.7152 + curr.data[i+2]*0.0722);
+          diffSum += Math.abs(l2 - l1); n++;
         }
       }
-      if ((diffSum / n) > MOTION_THRESH) {
+      if ((diffSum/n) > MOTION_THRESH){
         hits++;
         sumX += (x + BLOCK/2) / mw;
         sumY += (y + BLOCK/2) / mh;
@@ -100,8 +81,8 @@ function analyzeMotion(){
   }
   prevFrame.data.set(curr.data);
 
-  const rawIntensity = Math.min(1, hits / ((mw*mh)/(BLOCK*BLOCK)) * 3.0);
-  motionIntensity = lerp(motionIntensity, rawIntensity, 0.25);
+  const raw = Math.min(1, hits / ((mw*mh)/(BLOCK*BLOCK)) * 3.0);
+  motionIntensity = lerp(motionIntensity, raw, 0.25);
   if (hits>0){
     motionCenterX = lerp(motionCenterX, sumX/hits, 0.2);
     motionCenterY = lerp(motionCenterY, sumY/hits, 0.2);
@@ -111,100 +92,158 @@ function analyzeMotion(){
   }
 }
 
-// ====== Audio feedback ======
-let outCtx = null, osc = null, filt = null, gain = null, audioOn = false;
-function initAudio(){
-  if (outCtx) return;
-  outCtx = new (window.AudioContext || window.webkitAudioContext)();
-  osc = outCtx.createOscillator(); osc.type = "sine";
-  filt = outCtx.createBiquadFilter(); filt.type = "lowpass"; filt.frequency.value = 1400; filt.Q.value = 0.7;
-  gain = outCtx.createGain(); gain.gain.value = 0.0001;
-  osc.connect(filt).connect(gain).connect(outCtx.destination);
-  osc.start(); outCtx.resume();
-}
-function setAudio(freq, vol){
-  if (!outCtx) return;
-  const now = outCtx.currentTime;
-  osc.frequency.cancelScheduledValues(now);
-  gain.gain.cancelScheduledValues(now);
-  osc.frequency.linearRampToValueAtTime(freq, now + 0.05);
-  gain.gain.linearRampToValueAtTime(vol,  now + 0.05);
-}
-function toggleAudio(){
-  initAudio();
-  if (!audioOn){ outCtx.resume(); audioOn = true; audioBtn.classList.add("on"); }
-  else { setAudio(140, 0.0001); audioOn = false; audioBtn.classList.remove("on"); }
+/* ===================== Audio (Tone.js Samplers) ===================== */
+let audioReady = false, piano, violin;
+
+async function initAudio(){
+  if (audioReady) return;
+  await Tone.start();
+
+  // Piano (links) & Violin (rechts) — laadt alleen enkele kernsamples
+  piano = new Tone.Sampler({
+    urls: {
+      C4: "pianoC4.wav",
+      E4: "pianoE4.wav",
+      G4: "pianoG4.wav",
+      C5: "pianoC5.wav"
+    },
+    baseUrl: "./samples/piano/",
+    attack: 0.005, release: 0.8
+  }).toDestination();
+
+  violin = new Tone.Sampler({
+    urls: {
+      C4: "violinC4.wav",
+      E4: "violinE4.wav",
+      G4: "violinG4.wav",
+      C5: "violinC5.wav"
+    },
+    baseUrl: "./samples/violin/",
+    attack: 0.01, release: 1.2
+  }).toDestination();
+
+  // zachte limiter tegen clipping
+  const limiter = new Tone.Limiter(-1).toDestination();
+  piano.connect(limiter);
+  violin.connect(limiter);
+
+  audioReady = true;
 }
 
-// ====== Visuals ======
+// Toonset van laag → hoog (chromatisch-ish maar muzikaal)
+const SCALE = ["C4","D4","E4","G4","A4","C5","D5","E5","G5","A5"];
+
+function yToNote(y){ // y=0 boven → hoogste noot
+  const idx = Math.max(0, Math.min(SCALE.length-1, Math.round((1 - y) * (SCALE.length-1))));
+  return SCALE[idx];
+}
+
+let lastTrig = 0;
+function triggerFromMotion(){
+  if (!audioReady) return;
+  const now = Tone.now();
+
+  // throttle zodat het muzikaal blijft
+  const minGap = 0.18 + (1 - motionIntensity) * 0.35; // rustiger bij weinig beweging
+  if (now - lastTrig < minGap) return;
+
+  // instrumentkeuze
+  const isPiano = (motionCenterX < 0.5);
+  const synth = isPiano ? piano : violin;
+
+  // noot & dynamiek
+  const note = yToNote(motionCenterY);
+  const vel  = Math.min(1, 0.25 + motionIntensity * 0.9); // 0..1
+  const dur  = isPiano ? "8n" : "4n"; // viool iets langer
+
+  try {
+    synth.triggerAttackRelease(note, dur, now, vel);
+    lastTrig = now;
+  } catch(e) {
+    // negeren als samples nog laden
+  }
+}
+
+/* ===================== Visuals ===================== */
 function drawBackground(hue){
-  ctx.globalCompositeOperation = "source-over";
-  ctx.fillStyle = `hsla(${hue}, 55%, 10%, 0.12)`;
-  ctx.fillRect(0,0,canvas.width,canvas.height);
+  ctx.globalCompositeOperation="source-over";
+  ctx.fillStyle=`hsla(${hue},55%,10%,0.12)`;
+  ctx.fillRect(0,0,canvas.clientWidth,canvas.clientHeight);
 }
 
-function drawHorizontalWave(handX, handY, intensity){
-  const w = canvas.clientWidth;
-  const h = canvas.clientHeight;
-  const mid = h/2;  // altijd exact midden van het scherm
+function drawHorizontalWave(){
+  const w = canvas.clientWidth, h = canvas.clientHeight, mid = h/2;
 
-  const xHandPx = handX * w;
-  const yInv    = 1 - handY; // boven=1, onder=0
+  // handpositie
+  const xHand = motionCenterX * w;
+  const yInv  = 1 - motionCenterY; // boven=1
 
-  // kleur
-  const hue  = 200 + yInv*130 + (handX-0.5)*10;
+  // kleur (boven → warmer/lichter)
+  const hue = 200 + yInv*130 + (motionCenterX-0.5)*10;
   drawBackground(hue|0);
 
   // amplitude
-  const baseA = 18 + intensity*70;
-  const peakA = 70 + yInv*170;
-  const sigma = w * 0.18;
+  const baseA = 18 + motionIntensity*70; // overal wat leven
+  const peakA = 70 + yInv*170;           // lokale piek (hoger → groter)
+  const sigma = w * 0.18;                // kolombreedte onder je hand
 
-  // golf
+  // golfparameters
   const k = (2*Math.PI)/w;
-  const speed = 0.001 + 0.0020*(0.3 + 0.7*intensity);
-  const dirSign = Math.sign((handX-0.5)) || 1;
-  const t = performance.now() * (speed * (1 + 0.4*Math.abs((handX-0.5)*2))) * dirSign;
+  const speed = 0.001 + 0.0020*(0.3 + 0.7*motionIntensity);
+  const dirSign = Math.sign((motionCenterX-0.5)) || 1;   // links(-) / rechts(+)
+  const t = performance.now() * (speed * (1 + 0.4*Math.abs((motionCenterX-0.5)*2))) * dirSign;
 
-  ctx.globalCompositeOperation = "lighter";
+  // 3 lagen met lokale amplitude-boost rond xHand
+  ctx.globalCompositeOperation="lighter";
 
-  // hoofdgolf
+  // Laag 1
   ctx.beginPath();
   for (let x=0; x<=w; x+=3){
-    const dx = x - xHandPx;
+    const dx = x - xHand;
     const boost = Math.exp(-(dx*dx)/(2*sigma*sigma));
     const A = baseA + peakA*boost;
     const y = mid + A*Math.sin(k*x + t) + 0.35*A*Math.sin(k*x*0.5 + t*0.6);
     if (x===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
   }
-  ctx.lineWidth = 6; ctx.strokeStyle = `hsla(${hue}, 80%, 70%, 1)`; ctx.stroke();
+  ctx.lineWidth=6; ctx.strokeStyle=`hsla(${hue},80%,70%,1)`; ctx.stroke();
 
-  // audio
-  if (audioOn && outCtx){
-    const baseFreq = 140;
-    const pitchRange = 320;
-    const bend = (handX-0.5) * 60;
-    const freq = baseFreq + yInv*pitchRange + bend;
-    const vol  = Math.min(0.16, 0.02 + intensity*0.10 + yInv*0.10);
-    setAudio(freq, vol);
+  // Laag 2
+  ctx.beginPath();
+  for (let x=0; x<=w; x+=4){
+    const dx = x - xHand;
+    const boost = Math.exp(-(dx*dx)/(2*sigma*sigma));
+    const A = (baseA*0.55) + (peakA*0.55)*boost;
+    const y = mid + A*Math.sin(k*0.75*x + t*0.85);
+    if (x===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
   }
+  ctx.lineWidth=3.5; ctx.strokeStyle=`hsla(${hue},75%,78%,.9)`; ctx.stroke();
+
+  // Laag 3
+  ctx.beginPath();
+  for (let x=0; x<=w; x+=5){
+    const dx = x - xHand;
+    const boost = Math.exp(-(dx*dx)/(2*sigma*sigma));
+    const A = (baseA*0.3) + (peakA*0.3)*boost;
+    const y = mid + A*Math.sin(k*0.45*x + t*0.65);
+    if (x===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+  }
+  ctx.lineWidth=2.2; ctx.strokeStyle=`hsla(${hue},85%,88%,.8)`; ctx.stroke();
 }
 
-// ====== Loop ======
+/* ===================== Loop ===================== */
 function loop(){
   analyzeMotion();
-  drawHorizontalWave(motionCenterX, motionCenterY, motionIntensity);
+  drawHorizontalWave();
+  triggerFromMotion();
   requestAnimationFrame(loop);
 }
 
-// ====== UI ======
+/* ===================== UI ===================== */
 enableCamBtn.addEventListener("click", enableCamera);
-audioBtn.addEventListener("click", toggleAudio);
 infoBtn.addEventListener("click", ()=> infoModal.setAttribute("aria-hidden","false"));
 closeInfo.addEventListener("click", ()=> infoModal.setAttribute("aria-hidden","true"));
 document.addEventListener("keydown",(e)=>{
-  if (e.key === "Escape") infoModal.setAttribute("aria-hidden","true");
+  if (e.key==="Escape") infoModal.setAttribute("aria-hidden","true");
 });
 
-// Start
 loop();
