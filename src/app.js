@@ -14,19 +14,32 @@ const closeInfo = document.getElementById("closeInfo");
 
 const debugBtn  = document.getElementById("debugBtn");
 
-/* ===================== Beschikbare noten (zorg dat deze .wav echt bestaan!) ===================== */
+/* ===================== Beschikbare noten ===================== */
 const NOTES = ["C4","E4","G4","C5"]; 
-// Voeg hier noten bij als je extra .wav toevoegt, bv: "A4","D5", ...
+
+/* ===================== Split + hysterese ===================== */
+const SPLIT_X = 0.5;
+const HYST = 0.06;
+function sideWithHysteresis(x, prevSide){
+  if (prevSide === "left"){
+    if (x > SPLIT_X + HYST) return "right";
+    return "left";
+  }
+  if (prevSide === "right"){
+    if (x < SPLIT_X - HYST) return "left";
+    return "right";
+  }
+  return (x < SPLIT_X) ? "left" : "right";
+}
 
 /* ===================== Canvas / DPI ===================== */
 function resize(){
   const dpr = window.devicePixelRatio || 1;
-  canvas.width  = window.innerWidth * dpr;
-  canvas.height = window.innerHeight * dpr;
+  canvas.width  = Math.floor(window.innerWidth * dpr);
+  canvas.height = Math.floor(window.innerHeight * dpr);
   canvas.style.width  = window.innerWidth + "px";
   canvas.style.height = window.innerHeight + "px";
-  ctx.setTransform(1,0,0,1,0,0);
-  ctx.scale(dpr,dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
 }
 resize();
 addEventListener("resize", resize);
@@ -41,73 +54,68 @@ function setDebug(on){
 setDebug(false);
 
 debugBtn?.addEventListener("click", ()=> setDebug(!DEBUG));
+camVideo.addEventListener("click", ()=> setDebug(false));
 document.addEventListener("keydown", (e)=> {
-  if (e.key.toLowerCase() === "d") setDebug(!DEBUG);
+  if (e.key && e.key.toLowerCase() === "d") setDebug(!DEBUG);
 });
 
-/* ===================== Handtracking (MediaPipe) ===================== */
-let motionCenterX = 0.5, motionCenterY = 0.5, motionIntensity = 0;
-const lerp = (a,b,t)=> a+(b-a)*t;
+/* ===================== Handtracking ===================== */
+let hands, camera;
+let motionCenterX = 0.5, motionCenterY = 0.5, motionIntensity = 0.6;
 
-// moving averages voor extra smoothing
-const xHist=[], yHist=[];
-function smooth(val, hist, n=5){
-  hist.push(val); if(hist.length>n) hist.shift();
-  return hist.reduce((a,b)=>a+b,0)/hist.length;
+const detectedHands = [];
+let lastHandLandmarksList = [];
+let singleHandSide = null; // voor 1 hand scenario
+const smoothBuf = { x: [], y: [] };
+function smoothPush(buf, val, max=6){
+  buf.push(val); if (buf.length > max) buf.shift();
+  return buf.reduce((a,b)=>a+b,0)/buf.length;
 }
 
-let hands, camera;
-let prevY = 0.5;
-let lastHandLandmarks = null; // voor debug tekenen
-
 async function enableCamera(){
-  // Start camera stream
   const camStream = await navigator.mediaDevices.getUserMedia({ video: {facingMode:"user"}, audio:false });
   camVideo.srcObject = camStream;
   await camVideo.play().catch(()=>{});
 
-  // MediaPipe Hands (selfie/spiegel)
-  hands = new Hands({
-    locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
-  });
+  hands = new Hands({ locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}` });
   hands.setOptions({
-    selfieMode: true,          // MediaPipe levert gespiegelde x
-    maxNumHands: 1,
+    selfieMode: true,
+    maxNumHands: 2,
     modelComplexity: 1,
     minDetectionConfidence: 0.6,
     minTrackingConfidence: 0.6
   });
 
   hands.onResults(results => {
-    if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0){
-      const hand = results.multiHandLandmarks[0];
-      lastHandLandmarks = hand;
+    detectedHands.length = 0;
+    lastHandLandmarksList.length = 0;
 
-      const palm = hand[9]; // midden hand
-      const sx = smooth(palm.x, xHist, 5);
-      const sy = smooth(palm.y, yHist, 5);
+    const lms = results.multiHandLandmarks || [];
+    for (const handLm of lms){
+      lastHandLandmarksList.push(handLm);
+      const palm = handLm[9];
+      detectedHands.push({ x: palm.x, y: palm.y, landmarks: handLm });
+    }
 
-      motionCenterX = lerp(motionCenterX, sx, 0.25);
-      motionCenterY = lerp(motionCenterY, sy, 0.25);
+    if (detectedHands.length){
+      let avgX = 0, avgY = 0;
+      for (const h of detectedHands){ avgX += h.x; avgY += h.y; }
+      avgX /= detectedHands.length;
+      avgY /= detectedHands.length;
 
-      // intensiteit: hand-spread (duim-pink) + snelheid in Y
-      const thumb = hand[4], pinky = hand[20];
-      const dx = thumb.x - pinky.x, dy = thumb.y - pinky.y;
-      const spread = Math.min(1, Math.hypot(dx,dy) * 3.0);
+      const sx = smoothPush(smoothBuf.x, avgX);
+      const sy = smoothPush(smoothBuf.y, avgY);
 
-      const vy = Math.abs(sy - prevY); prevY = sy;
-      const speedBoost = Math.min(1, vy * 8);
-
-      motionIntensity = lerp(motionIntensity, Math.min(1, spread*0.8 + speedBoost*0.4), 0.25);
+      motionCenterX += (sx - motionCenterX) * 0.22;
+      motionCenterY += (sy - motionCenterY) * 0.22;
+      motionIntensity += (0.85 - motionIntensity) * 0.15;
     } else {
-      lastHandLandmarks = null;
-      motionCenterX = lerp(motionCenterX, 0.5, 0.05);
-      motionCenterY = lerp(motionCenterY, 0.5, 0.05);
-      motionIntensity = lerp(motionIntensity, 0.1, 0.05);
+      motionCenterX += (0.5 - motionCenterX) * 0.06;
+      motionCenterY += (0.5 - motionCenterY) * 0.06;
+      motionIntensity += (0.15 - motionIntensity) * 0.06;
     }
   });
 
-  // Camera helper die frames naar MediaPipe stuurt
   camera = new Camera(camVideo, {
     onFrame: async () => { await hands.send({image: camVideo}); },
     width: 640, height: 480
@@ -118,28 +126,20 @@ async function enableCamera(){
   centerOverlay.style.display = "none";
 }
 
-/* ===================== Audio (Tone.js Samplers, .wav) ===================== */
+/* ===================== Audio ===================== */
 let audioReady = false, piano, violin;
+const lastTrig = { left: 0, right: 0 };
+const MIN_GAP = { left: 0.25, right: 0.25 };
 
 async function initAudio(){
   if (audioReady) return;
   await Tone.start();
 
-  // Bouw de urls objecten dynamisch vanuit NOTES
   const urlsPiano  = Object.fromEntries(NOTES.map(n => [n, `piano${n}.wav`]));
   const urlsViolin = Object.fromEntries(NOTES.map(n => [n, `violin${n}.wav`]));
 
-  piano = new Tone.Sampler({
-    urls: urlsPiano,
-    baseUrl: "./samples/piano/",
-    attack: 0.004, release: 0.9
-  }).toDestination();
-
-  violin = new Tone.Sampler({
-    urls: urlsViolin,
-    baseUrl: "./samples/violin/",
-    attack: 0.01, release: 1.4
-  }).toDestination();
+  piano = new Tone.Sampler({ urls: urlsPiano, baseUrl: "./samples/piano/", attack: 0.005, release: 0.9 }).toDestination();
+  violin= new Tone.Sampler({ urls: urlsViolin, baseUrl: "./samples/violin/", attack: 0.01,  release: 1.2 }).toDestination();
 
   const limiter = new Tone.Limiter(-1).toDestination();
   piano.connect(limiter); violin.connect(limiter);
@@ -147,72 +147,64 @@ async function initAudio(){
   audioReady = true;
 }
 
-// kies uitsluitend uit beschikbare NOTES
 function yToAvailableNote(y){
-  // y=0 (boven) → hoogste index; y=1 (onder) → laagste index
   const idx = Math.max(0, Math.min(NOTES.length-1, Math.round((1 - y) * (NOTES.length-1))));
   return NOTES[idx];
 }
 
-let lastTrig = 0;
-function triggerSound(){
+function getPerSideHands(){
+  const res = { left: null, right: null };
+  if (detectedHands.length >= 2){
+    const sorted = detectedHands.slice().sort((a,b)=>a.x - b.x);
+    res.left = sorted[0];
+    res.right = sorted[sorted.length-1];
+    singleHandSide = null;
+  } else if (detectedHands.length === 1){
+    const h = detectedHands[0];
+    singleHandSide = sideWithHysteresis(h.x, singleHandSide);
+    res[singleHandSide] = h;
+  }
+  return res;
+}
+
+function triggerSounds(){
   if (!audioReady) return;
   const now = Tone.now();
+  const { left, right } = getPerSideHands();
 
-  const minGap = 0.18 + (1 - motionIntensity) * 0.35; // throttle
-  if (now - lastTrig < minGap) return;
-
-  const note = yToAvailableNote(motionCenterY); // ✅ alleen bestaande noten
-  const vel  = Math.min(1, 0.25 + motionIntensity * 0.9);
-  const left = motionCenterX < 0.5; // MediaPipe is al selfie
-
-  try{
-    if (left) piano.triggerAttackRelease(note, "8n", now, vel);
-    else      violin.triggerAttackRelease(note, "4n", now, vel);
-    lastTrig = now;
-  }catch(e){}
+  if (left){
+    const note = yToAvailableNote(left.y);
+    if (now - lastTrig.left > MIN_GAP.left){
+      piano.triggerAttackRelease(note, "8n", now, 0.8);
+      lastTrig.left = now;
+    }
+  }
+  if (right){
+    const note = yToAvailableNote(right.y);
+    if (now - lastTrig.right > MIN_GAP.right){
+      violin.triggerAttackRelease(note, "8n", now, 0.8);
+      lastTrig.right = now;
+    }
+  }
 }
 
-/* ===================== Visuals ===================== */
-function clearCanvas(){
-  ctx.setTransform(1,0,0,1,0,0);
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  const dpr = window.devicePixelRatio || 1;
-  ctx.scale(dpr,dpr);
-}
+/* ===================== Visuals (golf) ===================== */
+let phase = 0, lastTime = performance.now(), lastDir = 1;
 
-function drawBackground(hue){
-  ctx.globalCompositeOperation="source-over";
-  ctx.fillStyle=`hsla(${hue},55%,10%,0.06)`; // subtiele tint bovenop body-bg
-  ctx.fillRect(0,0,canvas.clientWidth,canvas.clientHeight);
-}
-
-// debug: landmarks tekenen
-function drawLandmarks(hand){
+function drawLandmarks(){
+  if (!DEBUG || lastHandLandmarksList.length === 0) return;
   const w = canvas.clientWidth, h = canvas.clientHeight;
   ctx.save();
-  ctx.globalCompositeOperation = "source-over";
   ctx.fillStyle = "rgba(255,200,0,0.9)";
-  for (const lm of hand){
-    const lx = lm.x * w;       
-    const ly = lm.y * h;
-    ctx.beginPath();
-    ctx.arc(lx, ly, 3.5, 0, Math.PI*2);
-    ctx.fill();
+  for (const hand of lastHandLandmarksList){
+    for (const lm of hand){
+      ctx.beginPath();
+      ctx.arc(lm.x*w, lm.y*h, 3, 0, Math.PI*2);
+      ctx.fill();
+    }
   }
-  const palm = hand[9];
-  const px = palm.x * w;       
-  const py = palm.y * h;
-  ctx.fillStyle = "rgba(255,0,0,0.85)";
-  ctx.beginPath();
-  ctx.arc(px, py, 5, 0, Math.PI*2);
-  ctx.fill();
   ctx.restore();
 }
-
-let phase = 0;         // stabiele fase
-let lastTime = performance.now();
-let lastDir = 1;
 
 function drawWave(){
   const now = performance.now();
@@ -220,73 +212,46 @@ function drawWave(){
   lastTime = now;
 
   const w = canvas.clientWidth, h = canvas.clientHeight, mid = h/2;
-
   const xHand = motionCenterX * w;
   const yInv  = 1 - motionCenterY;
 
-  // stabiele richting (flip niet rond midden)
   const offset = motionCenterX - 0.5;
   let dirSign = Math.sign(offset);
   if (Math.abs(offset) < 0.04) dirSign = lastDir; else lastDir = dirSign || lastDir;
 
-  // snelheid (cps) → fase integreren
   const freq = 0.6 + 1.8 * motionIntensity;
   phase += (freq * Math.PI * 2 * dirSign) * dt;
 
   const hue = 200 + yInv*130 + offset*10;
 
-  clearCanvas();
-  drawBackground(hue|0);
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  const dpr = window.devicePixelRatio || 1;
+  ctx.scale(dpr,dpr);
 
-  const baseA = 16 + motionIntensity*68;
-  const peakA = 64 + yInv*160;
-  const sigma = w * 0.18;
+  ctx.fillStyle=`hsla(${hue},55%,10%,0.06)`;
+  ctx.fillRect(0,0,w,h);
 
+  const baseA = 20, peakA = 100, sigma = w*0.2;
   const k1 = (2*Math.PI)/w;
-  ctx.globalCompositeOperation = "source-over";
-  ctx.lineCap = "round";
 
-  // laag 1
   ctx.beginPath();
   for (let x=0; x<=w; x+=3){
     const dx = x - xHand;
     const boost = Math.exp(-(dx*dx)/(2*sigma*sigma));
     const A = baseA + peakA*boost;
-    const y = mid + A*Math.sin(k1*x + phase) + 0.35*A*Math.sin(k1*x*0.5 + phase*0.6);
+    const y = mid + A*Math.sin(k1*x + phase);
     if (x===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
   }
-  ctx.lineWidth = 6; ctx.strokeStyle = `hsla(${hue}, 80%, 70%, 1)`; ctx.stroke();
+  ctx.lineWidth=5; ctx.strokeStyle=`hsla(${hue},80%,70%,1)`; ctx.stroke();
 
-  // laag 2
-  ctx.beginPath();
-  for (let x=0; x<=w; x+=4){
-    const dx = x - xHand;
-    const boost = Math.exp(-(dx*dx)/(2*sigma*sigma));
-    const A = (baseA*0.55) + (peakA*0.55)*boost;
-    const y = mid + A*Math.sin(k1*0.75*x + phase*0.85);
-    if (x===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
-  }
-  ctx.lineWidth = 3.5; ctx.strokeStyle = `hsla(${hue}, 75%, 78%, .9)`; ctx.stroke();
-
-  // laag 3
-  ctx.beginPath();
-  for (let x=0; x<=w; x+=5){
-    const dx = x - xHand;
-    const boost = Math.exp(-(dx*dx)/(2*sigma*sigma));
-    const A = (baseA*0.3) + (peakA*0.3)*boost;
-    const y = mid + A*Math.sin(k1*0.45*x + phase*0.65);
-    if (x===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
-  }
-  ctx.lineWidth = 2.2; ctx.strokeStyle = `hsla(${hue}, 85%, 88%, .8)`; ctx.stroke();
-
-  // debug landmarks bovenop de golf
-  if (DEBUG && lastHandLandmarks) drawLandmarks(lastHandLandmarks);
+  drawLandmarks();
 }
 
 /* ===================== Loop ===================== */
 function loop(){
   drawWave();
-  triggerSound();
+  triggerSounds();
   requestAnimationFrame(loop);
 }
 
