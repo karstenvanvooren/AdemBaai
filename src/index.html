@@ -4,47 +4,36 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Beweeg Baai</title>
-  <!-- Poppins -->
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="./style.css" />
 </head>
 <body>
-  <!-- Visual -->
-  <canvas id="viz" aria-label="Visualisatie van golven gestuurd door beweging" role="img"></canvas>
-
-  <!-- Verborgen webcamvideo (alleen voor analyse) -->
+  <canvas id="viz"></canvas>
   <video id="cam" playsinline muted autoplay></video>
 
-  <!-- Persistente mini-header -->
-  <header class="brand">
-    <h1><span class="word">Beweeg</span> <span class="word">Baai</span></h1>
-  </header>
+  <header class="brand"><h1>Beweeg Baai</h1></header>
 
-  <!-- Midden overlay (camera-permissie) -->
-  <div id="centerOverlay" class="overlay" role="dialog" aria-modal="true" aria-labelledby="overlayTitle">
-    <h2 id="overlayTitle" class="bigtitle"><span class="word">Beweeg</span> <span class="word">Baai</span></h2>
-    <p class="tagline">Beweeg je handen — de golf reageert in hoogte, kleur en muziek (piano links, viool rechts).</p>
-    <div class="btnrow">
-      <button id="enableCamBtn" class="btn">Camera aanzetten</button>
-    </div>
-    <p class="hint">Zonder camera kabbelt het rustig; met camera wordt het een instrument. Geluid start automatisch na je klik.</p>
+  <div id="centerOverlay" class="overlay">
+    <h2 class="bigtitle">Beweeg Baai</h2>
+    <p class="tagline">Beweeg je hand — golf reageert in hoogte, kleur en muziek (piano links, viool rechts).</p>
+    <button id="enableCamBtn" class="btn">Camera aanzetten</button>
   </div>
 
-  <!-- Info knop -->
-  <button id="infoBtn" class="fab top-right" aria-label="Info" title="Info">i</button>
-
-  <!-- Info modal -->
-  <div id="infoModal" class="modal" aria-hidden="true" role="dialog" aria-modal="true">
-    <div class="modal-card" role="document">
-      <button id="closeInfo" class="close" aria-label="Sluiten">×</button>
-      <h2>Beweeg Baai — Info</h2>
-      <p>Een schermvullende “baai” die jouw beweging vertaalt naar een horizontale golf. Links kies je pianoklanken, rechts viool. Hoogte (Y) bepaalt toonhoogte en helderheid; intensiteit bepaalt dynamiek. Alles draait lokaal in je browser.</p>
-      <p class="footnote">Code & instructies: je eigen GitHub repo.</p>
+  <button id="infoBtn" class="fab top-right">i</button>
+  <div id="infoModal" class="modal" aria-hidden="true">
+    <div class="modal-card">
+      <button id="closeInfo" class="close">×</button>
+      <h2>Info</h2>
+      <p>Links = piano, rechts = viool. Hoogte = toonhoogte, intensiteit = dynamiek. Alles realtime in de browser.</p>
     </div>
   </div>
 
-  <!-- Audio lib (Tone.js) vóór je app.js -->
+  <!-- Tone.js -->
   <script src="https://unpkg.com/tone"></script>
+  <!-- Mediapipe Hands -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+  <!-- Jouw app -->
   <script src="./app.js"></script>
 </body>
 </html>
