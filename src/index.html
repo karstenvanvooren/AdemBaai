@@ -1,52 +1,71 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="nl">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Beweeg Baai</title>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./style.css" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BeweegBaai</title>
+  <link rel="stylesheet" href="style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+  <!-- Tone.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+  <!-- MediaPipe Hands -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
 </head>
 <body>
-  <!-- Visual -->
-  <canvas id="viz" aria-label="Visualisatie van golven gestuurd door handtracking" role="img"></canvas>
 
-  <!-- Debug webcam (toggle) -->
-  <video id="cam" playsinline muted autoplay></video>
+  <!-- Canvas -->
+  <canvas id="viz"></canvas>
+  <video id="cam" autoplay playsinline muted></video>
 
-  <!-- Branding -->
-  <header class="brand">
+  <!-- Titel/brand -->
+  <div class="brand">
     <h1><span class="word">Beweeg</span> <span class="word">Baai</span></h1>
-  </header>
+  </div>
 
-  <!-- Start overlay -->
-  <div id="centerOverlay" class="overlay" role="dialog" aria-modal="true" aria-labelledby="overlayTitle">
-    <h2 id="overlayTitle" class="bigtitle"><span class="word">Beweeg</span> <span class="word">Baai</span></h2>
-    <p class="tagline">Beweeg je hand — de horizontale golf reageert in hoogte, kleur en muziek.<br/>Links = piano, rechts = viool.</p>
+  <!-- Overlay voor starten -->
+  <div id="centerOverlay" class="overlay">
+    <h2 class="bigtitle">Welkom bij BeweegBaai</h2>
+    <p class="tagline">Een interactieve installatie waarin jouw beweging muziek en golven vormt.</p>
     <div class="btnrow">
       <button id="enableCamBtn" class="btn">Camera aanzetten</button>
     </div>
-    <p class="hint">Geluid & tracking starten na je klik. Alles draait lokaal in je browser.</p>
+    <p class="hint">Je handen worden gevolgd om piano en viool te bespelen</p>
   </div>
 
-  <!-- Info & Debug -->
-  <button id="infoBtn" class="fab top-right" aria-label="Info" title="Info">i</button>
-  <button id="debugBtn" class="fab bottom-right" aria-label="Debug aan/uit" title="Debug">🐞</button>
+  <!-- Floating buttons -->
+  <button id="infoBtn" class="fab top-right">i</button>
+  <button id="debugBtn" class="fab bottom-right">🐞</button>
 
   <!-- Info modal -->
-  <div id="infoModal" class="modal" aria-hidden="true" role="dialog" aria-modal="true">
-    <div class="modal-card" role="document">
-      <button id="closeInfo" class="close" aria-label="Sluiten">×</button>
-      <h2>Beweeg Baai — Info</h2>
-      <p>De golf reageert op je hand via MediaPipe Hands. Links kies je pianoklanken, rechts viool. Hoogte bepaalt toonhoogte; hand-spread/snelheid bepaalt dynamiek. Audio via Tone.js; samples lokaal (.wav).</p>
-      <p class="footnote">Samples: <code>src/samples/piano/</code> en <code>src/samples/violin/</code>. Voeg noten toe en update de array <code>NOTES</code> in <code>app.js</code>.</p>
+  <div id="infoModal" class="modal" aria-hidden="true">
+    <div class="modal-card">
+      <button id="closeInfo" class="close">×</button>
+      <h2>BeweegBaai</h2>
+      <p>
+        <strong>BeweegBaai</strong> is een interactieve installatie die jouw 
+        <em>handbeweging</em> vertaalt naar <strong>muziek</strong> en 
+        <strong>golven</strong>. Je handen worden in realtime gedetecteerd via de webcam:
+      </p>
+      <ul>
+        <li><strong>Links</strong> op het scherm = piano </li>
+        <li><strong>Rechts</strong> op het scherm = viool </li>
+        <li><strong>Hoogte</strong> van je hand bepaalt de toonhoogte</li>
+      </ul>
+      <p>
+        De golf in het midden reageert visueel: kleur, amplitude en ritme 
+        veranderen mee, zodat een unieke <em>muzikale beleving</em> ontstaat.
+      </p>
+      <hr>
+      <p>
+        👉 Bekijk de code en documentatie op GitHub:<br>
+        <a href="https://github.com/karstenvanvooren/AdemBaai" target="_blank">
+          github.com/karstenvanvooren/AdemBaai
+        </a>
+      </p>
     </div>
   </div>
 
-  <!-- Scripts -->
-  <script src="https://unpkg.com/tone"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
-  <script src="./app.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>
