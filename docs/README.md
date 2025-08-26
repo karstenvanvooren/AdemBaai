@@ -13,10 +13,8 @@ Het resultaat is een visuele en auditieve ervaring waarin lichaamstaal muziek wo
 ---
 
 ## Demo-video
-(Video wordt later toegevoegd)  
-[![Demo Video](../media/thumbnail.png)](https://youtu.be/JOUW_VIDEO_LINK)
-
----
+![Thumbnail van BeweegBaai](media/thumbnail.png)
+https://vimeo.com/1113396718?share=copy
 
 ## Repo-structuur
 

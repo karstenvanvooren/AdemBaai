@@ -65,7 +65,7 @@ let motionCenterX = 0.5, motionCenterY = 0.5, motionIntensity = 0.6;
 
 const detectedHands = [];
 let lastHandLandmarksList = [];
-let singleHandSide = null; // voor 1 hand scenario
+let singleHandSide = null; 
 const smoothBuf = { x: [], y: [] };
 function smoothPush(buf, val, max=6){
   buf.push(val); if (buf.length > max) buf.shift();
