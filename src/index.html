@@ -11,7 +11,7 @@
   <!-- Visual -->
   <canvas id="viz" aria-label="Visualisatie van golven gestuurd door handtracking" role="img"></canvas>
 
-  <!-- Verborgen/zichtbare webcamvideo (debug toggle) -->
+  <!-- Debug webcam (toggle) -->
   <video id="cam" playsinline muted autoplay></video>
 
   <!-- Branding -->
@@ -26,7 +26,7 @@
     <div class="btnrow">
       <button id="enableCamBtn" class="btn">Camera aanzetten</button>
     </div>
-    <p class="hint">Geluid en tracking starten na je klik. Alles draait lokaal in je browser.</p>
+    <p class="hint">Geluid & tracking starten na je klik. Alles draait lokaal in je browser.</p>
   </div>
 
   <!-- Info & Debug -->
@@ -38,16 +38,15 @@
     <div class="modal-card" role="document">
       <button id="closeInfo" class="close" aria-label="Sluiten">×</button>
       <h2>Beweeg Baai — Info</h2>
-      <p>Een schermvullende “baai” die jouw hand vertaalt naar een horizontale golf. Links kies je pianoklanken, rechts viool. Hoogte (Y) bepaalt toonhoogte & helderheid; hand-spread/snelheid bepaalt dynamiek. Handtracking via MediaPipe Hands, audio via Tone.js.</p>
-      <p class="footnote">Samples in <code>src/samples/piano/*.wav</code> en <code>src/samples/violin/*.wav</code>.</p>
+      <p>De golf reageert op je hand via MediaPipe Hands. Links kies je pianoklanken, rechts viool. Hoogte bepaalt toonhoogte; hand-spread/snelheid bepaalt dynamiek. Audio via Tone.js; samples lokaal (.wav).</p>
+      <p class="footnote">Samples: <code>src/samples/piano/</code> en <code>src/samples/violin/</code>. Voeg noten toe en update de array <code>NOTES</code> in <code>app.js</code>.</p>
     </div>
   </div>
 
-  <!-- Tone.js + MediaPipe + App -->
+  <!-- Scripts -->
   <script src="https://unpkg.com/tone"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
   <script src="./app.js"></script>
 </body>
 </html>
-

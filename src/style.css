@@ -28,6 +28,8 @@ body {
   box-shadow: 0 10px 28px rgba(0,0,0,.4);
   z-index: 5;
   display: none; /* standaard uit; aan via debug */
+  transform: scaleX(-1);
+  transform-origin: center;
 }
 
 /* Brand */
@@ -120,6 +122,7 @@ body {
 .modal-card .footnote{ margin-top:.8rem; font-size:.95rem; color: var(--muted); }
 .modal-card a{ color: #7bdff2; text-decoration: none; }
 
+/* Sluitknop */
 .close{
   position:absolute; right:.4rem; top:.35rem;
   width: 40px; height: 40px; border-radius: 999px;
